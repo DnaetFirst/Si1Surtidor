@@ -16,6 +16,8 @@ Web: `API_UPSTREAM` debe apuntar a la URL privada de la API; por ejemplo, `http:
 
 Las credenciales de bootstrap solo se usan para crear las cuentas iniciales cuando la tabla de usuarios está vacía. Ejecutar de nuevo el seed no las restablece. No usar `.env` ni `.local/ACCESO.txt` de desarrollo como archivos públicos.
 
+La inicialización crea exactamente dos usuarios: ASU y ATI. Sus identificadores y nombres pueden configurarse con `BOOTSTRAP_ASU_CI`, `BOOTSTRAP_ASU_NAME`, `BOOTSTRAP_ATI_CI` y `BOOTSTRAP_ATI_NAME`. Los otros tres roles se registran sin cuentas. Una base existente no se vacía ni se modifica para forzar este número de usuarios.
+
 ## Secuencia de entrega
 
 Ejecutar `npm test` sobre PostgreSQL 15 antes de construir las imágenes. La imagen API aplica migraciones al iniciar y arranca solo si terminan correctamente; el esquema no utiliza `synchronize`. En la primera entrega mantener una réplica API mientras se aplican migraciones. Para futuras versiones, ejecutar migraciones como paso único previo al despliegue.

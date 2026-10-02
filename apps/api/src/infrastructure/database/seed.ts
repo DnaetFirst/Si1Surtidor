@@ -37,6 +37,8 @@ export async function seed(db: DataSource): Promise<void> {
           ON CONFLICT DO NOTHING`, [role, codes]);
       }
       for (const code of ['ASU', 'ATI']) {
+        const ci = process.env[`BOOTSTRAP_${code}_CI`]?.trim() || `BOOTSTRAP-${code}`;
+        const name = process.env[`BOOTSTRAP_${code}_NAME`]?.trim() || (code === 'ASU' ? 'Administrador Super Usuario' : 'Administrador TI');
         const email = requiredEnv(`BOOTSTRAP_${code}_EMAIL`).trim().toLowerCase();
         const password = requiredEnv(`BOOTSTRAP_${code}_PASSWORD`);
         if (!validPassword(password)) throw new Error(`BOOTSTRAP_${code}_PASSWORD no cumple la política.`);
@@ -44,7 +46,7 @@ export async function seed(db: DataSource): Promise<void> {
         const [{ id }] = await em.query('SELECT id FROM rol WHERE codigo=$1', [code]);
         await em.query(`INSERT INTO usuario(ci,nombre,correo,telefono,sexo,domicilio,password_hash,id_rol,cargo)
           VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-        [`BOOTSTRAP-${code}`, code === 'ASU' ? 'Administrador Super Usuario' : 'Administrador TI', email,
+        [ci, name, email,
           '00000000', 'No especificado', 'Actualizar domicilio', await hashPassword(password), id, 'Administración']);
       }
     }
