@@ -24,6 +24,6 @@ async function bootstrap() {
     .setVersion('1.0.0').addCookieAuth('access_token').addApiKey({ type: 'apiKey', in: 'header', name: 'X-CSRF-Token' }, 'csrf').build());
   SwaggerModule.setup('api/docs', app, document);
   app.enableShutdownHooks();
-  await app.listen(Number(process.env.PORT ?? 3000), '0.0.0.0');
+  await app.listen(Number(process.env.PORT ?? 3000), process.env.HOST ?? '0.0.0.0');
 }
 bootstrap().catch(error => { console.error(error.message); process.exitCode = 1; });

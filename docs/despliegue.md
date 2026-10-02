@@ -1,4 +1,21 @@
-# Preparación para Railway
+# Despliegue de demostración y preparación para Railway
+
+## Demostración gratuita: Render y Neon
+
+La demostración utiliza un único Web Service **Free** de Render para Apache, React y NestJS, y un proyecto **Free** de Neon con PostgreSQL 15. Es una adaptación del proveedor Railway indicado en el PDF para cumplir el requisito de coste cero. Los límites gratuitos son compartidos con otros proyectos de la cuenta. Render suspende el servicio tras 15 minutos de inactividad y el siguiente acceso puede tardar aproximadamente un minuto.
+
+- Repositorio: `DnaetFirst/Si1Surtidor`, rama `main`.
+- Runtime Docker, contexto raíz y Dockerfile `infrastructure/demo.Dockerfile`.
+- Puerto público `10000`; comprobación de salud `/api/health`.
+- `DATABASE_URL`: conexión de Neon con verificación TLS; `DATABASE_SSL=true`.
+- `JWT_SECRET`, `CSRF_SECRET` y las variables `BOOTSTRAP_*`: secretos de esta instalación, configurados en Render, nunca en Git.
+- `COOKIE_SECURE=true`, `TRUST_PROXY=true`. El origen se obtiene de `RENDER_EXTERNAL_URL`; `WEB_ORIGIN` permite reemplazarlo para un dominio propio.
+
+El proceso de inicio aplica migraciones e inicializa solamente ASU y ATI en una base vacía, inicia la API en `127.0.0.1:3000` y Apache en el puerto público. Apache sirve el frontend y reenvía `/api` bajo el mismo dominio. Ambos procesos se supervisan; si uno falla, el contenedor termina para que la plataforma pueda reiniciarlo. Los datos persisten en Neon aunque Render se suspenda o reinicie.
+
+No seleccionar planes de pago, discos persistentes ni otros complementos. La disponibilidad está sujeta a las cuotas gratuitas: [Render](https://render.com/docs/free), [Neon](https://neon.com/pricing). No se promete disponibilidad continua para producción.
+
+## Alternativa original: Railway
 
 El repositorio incluye dos imágenes independientes. La publicación y contratación de servicios no se han realizado.
 
