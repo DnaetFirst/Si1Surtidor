@@ -3,6 +3,8 @@ import { send } from '../../../../shared/infrastructure/http';
 import { UsersApi } from '../domain/repository';
 import { User } from '../domain/models';
 export const usersApi: UsersApi = {
+    profileKey: () => '/usuarios/mi-perfil',
+    saveProfile: payload => send<User>('/usuarios/mi-perfil', 'PATCH', payload),
     disable: (target: User) => send(`/usuarios/${encodeURIComponent(target.ci)}/deshabilitar`, 'POST'),
     listKey: (page: number, search: string, active: string) => `/usuarios?${query({ page, pageSize: 10, q: search, activo: active })}`,
     detailKey: (ci: string | undefined) => ci ? `/usuarios/${encodeURIComponent(ci)}` : null,

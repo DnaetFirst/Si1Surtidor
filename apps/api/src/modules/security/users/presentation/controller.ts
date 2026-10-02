@@ -4,12 +4,16 @@ import { AuthRequest } from '../../../../shared/domain/context';
 import { ListQuery } from '../../../../shared/presentation/list-query.dto';
 import { RequirePermissions } from '../../auth/presentation/decorators';
 import { UsersService } from '../application/service';
-import { CreateUserDto, UpdateUserDto } from './dto';
+import { CreateUserDto, UpdateUserDto, UpdateProfileDto } from './dto';
 @ApiTags('Usuarios')
 @ApiCookieAuth()
 @Controller('usuarios')
 export class UsersController {
     constructor(private readonly service: UsersService) { }
+    @Get('mi-perfil')
+    profile(@Req() req: AuthRequest) { return this.service.user(req.user.ci); }
+    @Patch('mi-perfil')
+    updateProfile(@Body() dto: UpdateProfileDto, @Req() req: AuthRequest) { return this.service.updateProfile(dto, req); }
     @Get()
     @RequirePermissions('usuarios.gestionar', 'usuarios.ver')
     @ApiOperation({ summary: 'Lista paginada de usuarios; nunca devuelve contraseñas ni sesiones.' })

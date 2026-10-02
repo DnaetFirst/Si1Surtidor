@@ -39,10 +39,12 @@ export function useRoleForm() {
         setSelected(detail.data.permisos.map(p => p.id));
         hydrated.current = String(detail.data.id);
     } }, [detail.data]);
-    const readonly = !allowed(user, 'roles', id ? 'editar' : 'crear');
-    const groups = (permissions.data || []).reduce<Record<string, Permission[]>>((all, permission) => { (all[permission.modulo] ||= []).push(permission); return all; }, {});
+    const readonly = !allowed(user, 'roles', id ? 'editar' : 'crear') || detail.data?.codigo === 'ASU' && user?.rol.codigo !== 'ATI';
+    const visiblePermissions = [...new Map([...(detail.data?.permisos || []), ...(permissions.data || [])].map(permission => [permission.id, permission])).values()];
+    const groups = visiblePermissions.reduce<Record<string, Permission[]>>((all, permission) => { (all[permission.modulo] ||= []).push(permission); return all; }, {});
     async function submit(e: FormEvent) { e.preventDefault(); setPending(true); setError(null); try {
         await rolesApi.save(id, nombre, selected);
+        if (id) await detail.mutate();
         dispatch(setNotice(id ? 'Rol actualizado correctamente.' : 'Rol creado correctamente.'));
         navigate('/usuarios/roles');
     }

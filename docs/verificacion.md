@@ -1,14 +1,14 @@
 # Verificación del ciclo 1
 
-Verificado el 1 de octubre de 2026 con Node.js 22.15.1, PostgreSQL 15.18 y Google Chrome mediante Playwright, sobre Windows.
+Verificado el 2 de octubre de 2026 con Node.js 22.15.1, PostgreSQL 15.18 y Google Chrome mediante Playwright, sobre Windows.
 
 ## Resultado
 
 - Compilación de producción de frontend y backend: correcta.
 - Pruebas de arquitectura: **5 aprobadas, 0 fallidas**.
-- Pruebas unitarias de dominio y validación: **7 aprobadas, 0 fallidas**.
-- Pruebas de integración HTTP/PostgreSQL: **15 aprobadas, 0 fallidas** (incluyen la suite contenedora).
-- Pruebas de navegador: **65 aprobadas, 0 fallidas**.
+- Pruebas unitarias de dominio y validación: **8 aprobadas, 0 fallidas**.
+- Pruebas de integración HTTP/PostgreSQL: **17 aprobadas, 0 fallidas** (incluyen la suite contenedora).
+- Pruebas de navegador: **68 aprobadas, 0 fallidas**.
 - Las seis pantallas de referencia se verificaron a 360, 390, 768, 1024, 1280 y 1600 px: 36 capturas, sin desbordamiento horizontal de página ni errores JavaScript.
 - Se comprobaron en navegador altas, edición, búsqueda y deshabilitación de usuarios, creación de roles, navegación por permisos, login y logout.
 - Revisión visual de las capturas de login, usuarios, rol, permisos, empresa y bitácora frente al PDF, incluyendo adaptación móvil. Se conservan las diferencias acordadas por permisos, datos reales y funciones adicionales documentadas.
@@ -23,6 +23,8 @@ npm test
 La variable selecciona el Chrome instalado; sin ella Playwright utiliza su Chromium descargado. El ejecutor crea una base PostgreSQL aislada para cada ejecución, aplica las migraciones y los datos iniciales, y elimina exclusivamente esa base al finalizar. La base local de trabajo se conserva.
 
 ## Correcciones comprobadas
+
+Los roles cuentan solamente usuarios activos y admiten baja cuando todos sus usuarios están inactivos, preservando la relación histórica. El ASU edita sus datos y contraseña desde Mi cuenta → Mi perfil; ATI no puede editar su cuenta ni restablecer su contraseña. ATI agrega y quita permisos adicionales del rol ASU, conservando sus cuatro permisos esenciales. Se verifica la autorización también mediante solicitudes directas a la API, la revocación de sesiones al cambiar contraseña y la actualización de permisos en sesiones existentes. Los formularios de usuarios, roles y permisos actualizan su caché después de guardar para no recuperar datos anteriores al reabrirlos.
 
 La reorganización modular eliminó `BusinessService` y separó los seis paquetes documentados en presentación, aplicación, dominio e infraestructura. Los hooks React consumen contratos inyectados y los casos de uso del backend no contienen SQL. Las pruebas de arquitectura verifican estas restricciones en ambos proyectos. La prueba nueva de atomicidad fuerza un fallo al insertar un evento y comprueba que la creación del rol se revierte en PostgreSQL.
 

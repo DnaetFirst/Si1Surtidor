@@ -15,7 +15,7 @@ export class AdministrativeTransactionService extends AdministrativeTransaction 
             const permissions = await this.authorization.permissions(current.rolId, tx);
             const codes = permissions.filter(p => !p.reservado || current.rolCodigo === 'ASU').map(p => p.codigo);
             const module = action.split('.')[0];
-            if (!codes.includes(action) && !codes.includes(`${module}.gestionar`))
+            if (action !== 'perfil.editar' && !codes.includes(action) && !codes.includes(`${module}.gestionar`))
                 throw new ForbiddenException('Sus permisos cambiaron. No tiene autorización para realizar esta operación.');
             req.user = { ci: current.ci, nombre: current.nombre, correo: current.correo, rol: { id: current.rolId, codigo: current.rolCodigo, nombre: current.rolNombre }, permisos: codes };
             const result = await work(tx);

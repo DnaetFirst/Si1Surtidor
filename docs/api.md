@@ -28,7 +28,7 @@ Códigos relevantes: `400` validación, `401` sesión o credenciales inválidas,
 
 `POST /usuarios` recibe CI, nombre, correo, teléfono, cargo opcional, sexo, domicilio, contraseña, `rolId` y `sucursalId` opcional. Los nombres de campo son `ci`, `nombre`, `correo`, `telefono`, `cargo`, `sexo`, `domicilio`, `contrasena`, `rolId` y `sucursalId`. `PATCH /usuarios/:ci` modifica los campos enviados; `contrasena: ""` conserva el hash actual. `POST /usuarios/:ci/deshabilitar` realiza una baja lógica y revoca sesiones. Cambiar el CI no está permitido.
 
-`POST /roles` recibe `{ "nombre": "...", "permisoIds": [] }`; `PATCH /roles/:id` modifica nombre o asignaciones. `POST /roles/:id/deshabilitar` rechaza roles asignados a usuarios. El código del rol es estable.
+`POST /roles` recibe `{ "nombre": "...", "permisoIds": [] }`; `PATCH /roles/:id` modifica nombre o asignaciones. `POST /roles/:id/deshabilitar` rechaza roles asignados a usuarios activos. El código del rol es estable.
 
 `POST /permisos` recibe `{ "nombre": "...", "descripcion": "...", "modulo": "usuarios", "accion": "ver" }`; deriva un código estable como `usuarios.ver`. El catálogo cerrado impide crear permisos que no correspondan a una operación real. `PATCH /permisos/:id` cambia únicamente nombre y descripción. `POST /permisos/:id/deshabilitar` rechaza permisos asignados a roles.
 
@@ -43,3 +43,9 @@ Las capacidades `gestionar` agrupan las operaciones del módulo. También existe
 `POST /bitacora/archivar` recibe `{ "desde": "...", "hasta": "..." }` y archiva el rango inclusivo. El evento sigue disponible al consultar `archivado=true`. No existen operaciones de edición o eliminación de eventos.
 
 `GET /bitacora/exportar` y `GET /permisos/exportar` reciben los mismos filtros que sus listados y descargan todos los resultados, independientemente de la paginación. Los CSV están codificados en UTF-8 con BOM, escapan las celdas y neutralizan fórmulas.
+# Perfil propio y administración del ASU
+
+- `GET /api/usuarios/mi-perfil`: datos de la cuenta autenticada, sin requerir acceso al módulo Usuarios.
+- `PATCH /api/usuarios/mi-perfil`: nombre, correo, teléfono y domicilio; para cambiar contraseña requiere `contrasena` y `contrasenaActual`. Revoca todas las sesiones al cambiarla.
+- `PATCH /api/usuarios/:ci`: rechaza la edición de cuentas ASU; solo su titular puede modificarlas desde Mi perfil.
+- Los roles exponen `permisosProtegidos` con los identificadores bloqueados. `PATCH /api/roles/:id` rechaza quitar esenciales del ASU; ATI puede modificar los adicionales no reservados conservando los esenciales.

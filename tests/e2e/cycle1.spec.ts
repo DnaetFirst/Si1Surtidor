@@ -268,7 +268,7 @@ for (const width of [390, 768, 1600]) {
       const account = (await page.locator('.account-dropdown').boundingBox())!;
       expect(account.x).toBeGreaterThanOrEqual(8);
       expect(account.x + account.width).toBeLessThanOrEqual(width - 8);
-      await page.getByRole('heading', { name: 'Permisos', exact: true }).click();
+      await page.mouse.click(8, 600);
       await expect(page.locator('.account-dropdown')).toHaveCount(0);
 
       await page.goto('/usuarios/permisos');
@@ -394,6 +394,60 @@ test('Bitácora: filtros, CSV, archivo y consulta de archivados en móvil', asyn
     await page.getByRole('button', { name: 'Archivados', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Bitácora archivada', exact: true })).toBeVisible();
     await expect(page.locator('tbody tr').first()).toContainText('AUTH_LOGIN');
+    await noHorizontalOverflow(page);
+  } finally { await context.close(); }
+});
+
+
+test('ATI administra adicionales del ASU y conserva esenciales en móvil', async ({ browser }) => {
+  const { context, page } = await openPage(browser, 'ATI', 390);
+  await page.goto('/usuarios/roles');
+  await page.getByRole('button', { name: 'Acciones de Administrador Super Usuario', exact: true }).click();
+  await page.getByRole('link', { name: 'Editar rol', exact: true }).click();
+  await expect(page.getByLabel('Nombre', { exact: true })).toBeDisabled();
+  for (const name of ['Gestionar permisos', 'Consultar bitácora', 'Exportar bitácora', 'Archivar bitácora']) {
+    const control = page.getByRole('switch', { name: 'Permiso ' + name, exact: true });
+    await expect(control).toBeChecked(); await expect(control).toBeDisabled();
+  }
+  const company = page.getByRole('switch', { name: 'Permiso Gestionar empresa', exact: true });
+  await company.check(); await page.getByRole('button', { name: 'Guardar Rol', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Roles', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Acciones de Administrador Super Usuario', exact: true }).click();
+  await page.getByRole('link', { name: 'Editar rol', exact: true }).click();
+  await expect(company).toBeChecked(); await company.uncheck();
+  await noHorizontalOverflow(page);
+  await page.getByRole('button', { name: 'Guardar Rol', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Roles', exact: true })).toBeVisible();
+  await context.close();
+});
+
+test('ASU edita su perfil desde Mi cuenta en móvil', async ({ browser }) => {
+  const { context, page } = await openPage(browser, 'ASU', 390);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Mi cuenta', exact: true }).click();
+  await page.getByRole('link', { name: 'Mi perfil', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Mi perfil', exact: true })).toBeVisible();
+  await page.getByLabel('Teléfono', { exact: true }).fill('736278334');
+  await page.getByRole('button', { name: 'Guardar perfil', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('Perfil actualizado');
+  await page.reload(); await expect(page.getByLabel('Teléfono', { exact: true })).toHaveValue('736278334');
+  await expect(page.getByLabel('Rol', { exact: true })).toHaveAttribute('readonly','');
+  await noHorizontalOverflow(page); await context.close();
+});
+
+test('ATI no puede editar el usuario ASU ni su contraseña', async ({ browser }) => {
+  const { context, page } = await openPage(browser, 'ATI', 390);
+  try {
+    await page.goto('/usuarios');
+    await page.getByLabel('Buscar...', { exact: true }).fill(process.env.TEST_ASU_EMAIL!);
+    const row = page.getByRole('row').filter({ hasText: process.env.TEST_ASU_EMAIL! });
+    const detailUrl = await row.getByRole('link').getAttribute('href');
+    await row.getByRole('button').click();
+    await expect(page.getByRole('link', { name: 'Editar usuario', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Deshabilitar', exact: true })).toHaveCount(0);
+    await page.goto(detailUrl + '/editar');
+    await expect(page.getByText('Operación restringida', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Guardar Usuario', exact: true })).toHaveCount(0);
     await noHorizontalOverflow(page);
   } finally { await context.close(); }
 });

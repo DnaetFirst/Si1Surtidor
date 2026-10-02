@@ -7,19 +7,333 @@ import { Card, FormTop, PageHeading } from '../../../../shared/presentation/layo
 import { Pagination, RowMenu } from '../../../../shared/presentation/table';
 import { allowed, setNotice } from '../../auth/application/session';
 import { useUserForm, useUsers } from '../application/use-users';
+
 export function Users() {
-    const { user, dispatch, q, setQ, page, setPage, target, setTarget, data, error, isLoading, mutate, protectedUser, disableSelected } = useUsers();
-    return <div className="users-page"><PageHeading title="Usuarios" subtitle="Listado de todos los usuarios"/><div className="table-toolbar"><SearchInput value={q} onChange={setQ} placeholder="Buscar..."/><div className="actions">{allowed(user, 'usuarios', 'crear') && <Link className="button primary" style={{ background: '#000', color: '#fff', border: 'none' }} to="/usuarios/crear"><PlusCircle size={15}/>Agregar Usuario</Link>}</div></div><ErrorBox error={error} retry={() => void mutate()}/>{isLoading ? <Loading /> : data && <><div className="table-frame"><div className="table-scroll"><table className="users-table"><thead><tr><th>Nro</th><th><span className="inline">Nombre <ArrowDownAZ size={14}/></span></th><th>Email</th><th>Telefono</th><th><span className="sr-only">Acciones</span></th></tr></thead><tbody>{data.items.map((row, i) => <tr key={row.ci}><td>{(page - 1) * 10 + i + 1}</td><td><Link className="cell-link" to={`/usuarios/${encodeURIComponent(row.ci)}`}>{row.nombre}</Link></td><td>{row.correo}</td><td>{row.telefono}</td><td className="menu-cell"><RowMenu label={row.nombre}><Link to={`/usuarios/${encodeURIComponent(row.ci)}`}>Ver detalle</Link>{allowed(user, 'usuarios', 'editar') && !protectedUser(row) && <Link to={`/usuarios/${encodeURIComponent(row.ci)}/editar`}>Editar usuario</Link>}{allowed(user, 'usuarios', 'deshabilitar') && row.activo && !protectedUser(row) && <button onClick={() => setTarget(row)}>Deshabilitar</button>}</RowMenu></td></tr>)}</tbody></table></div>{!data.items.length && <Empty />}</div><Pagination page={page} pageSize={10} total={data.total} onChange={setPage}/></>}{target && <Confirm title="Deshabilitar usuario" description={`¿Deseas deshabilitar a ${target.nombre}? Se cerrarán sus sesiones y no podrá acceder al sistema.`} action={() => disableSelected()} onClose={() => setTarget(null)} onSuccess={() => { void mutate(); dispatch(setNotice('Usuario deshabilitado correctamente.')); }}/>}</div>;
+    const {
+        user,
+        dispatch,
+        q,
+        setQ,
+        page,
+        setPage,
+        target,
+        setTarget,
+        data,
+        error,
+        isLoading,
+        mutate,
+        protectedUser,
+        disableSelected,
+    } = useUsers();
+
+    return (
+        <div className="users-page">
+            <PageHeading
+                title="Usuarios"
+                subtitle="Listado de todos los usuarios"
+            />
+
+            <div className="table-toolbar">
+                <SearchInput
+                    value={q}
+                    onChange={setQ}
+                    placeholder="Buscar..."
+                />
+                <div className="actions">
+                    {allowed(user, 'usuarios', 'crear') && (
+                        <Link
+                            className="button primary"
+                            style={{ background: '#000', color: '#fff', border: 'none' }}
+                            to="/usuarios/crear"
+                        >
+                            <PlusCircle size={15} />
+                            Agregar Usuario
+                        </Link>
+                    )}
+                </div>
+            </div>
+
+            <ErrorBox error={error} retry={() => void mutate()} />
+
+            {isLoading ? (
+                <Loading />
+            ) : (
+                data && (
+                    <>
+                        <div className="table-frame">
+                            <div className="table-scroll">
+                                <table className="users-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Nro</th>
+                                            <th>
+                                                <span className="inline">
+                                                    Nombre <ArrowDownAZ size={14} />
+                                                </span>
+                                            </th>
+                                            <th>Email</th>
+                                            <th>Telefono</th>
+                                            <th>
+                                                <span className="sr-only">Acciones</span>
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {data.items.map((row, i) => (
+                                            <tr key={row.ci}>
+                                                {/* El número continúa desde la página anterior. */}
+                                                <td>{(page - 1) * 10 + i + 1}</td>
+                                                <td>
+                                                    <Link
+                                                        className="cell-link"
+                                                        to={`/usuarios/${encodeURIComponent(row.ci)}`}
+                                                    >
+                                                        {row.nombre}
+                                                    </Link>
+                                                </td>
+                                                <td>{row.correo}</td>
+                                                <td>{row.telefono}</td>
+                                                <td className="menu-cell">
+                                                    <RowMenu label={row.nombre}>
+                                                        <Link to={`/usuarios/${encodeURIComponent(row.ci)}`}>
+                                                            Ver detalle
+                                                        </Link>
+                                                        {allowed(user, 'usuarios', 'editar') && !protectedUser(row) && (
+                                                            <Link to={`/usuarios/${encodeURIComponent(row.ci)}/editar`}>
+                                                                Editar usuario
+                                                            </Link>
+                                                        )}
+                                                        {allowed(user, 'usuarios', 'deshabilitar') &&
+                                                            row.rol.codigo !== 'ASU' &&
+                                                            row.activo &&
+                                                            !protectedUser(row) && (
+                                                                <button onClick={() => setTarget(row)}>
+                                                                    Deshabilitar
+                                                                </button>
+                                                            )}
+                                                    </RowMenu>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {!data.items.length && <Empty />}
+                        </div>
+
+                        <Pagination
+                            page={page}
+                            pageSize={10}
+                            total={data.total}
+                            onChange={setPage}
+                        />
+                    </>
+                )
+            )}
+
+            {target && (
+                <Confirm
+                    title="Deshabilitar usuario"
+                    description={`¿Deseas deshabilitar a ${target.nombre}? Se cerrarán sus sesiones y no podrá acceder al sistema.`}
+                    action={() => disableSelected()}
+                    onClose={() => setTarget(null)}
+                    onSuccess={() => {
+                        void mutate();
+                        dispatch(setNotice('Usuario deshabilitado correctamente.'));
+                    }}
+                />
+            )}
+        </div>
+    );
 }
+
 export function UserForm({ readonly = false }: {
     readonly?: boolean;
 }) {
-    const { ci, form, pending, error, detail, roles, branches, restricted, set, submit } = useUserForm({ readonly });
+    const {
+        ci,
+        form,
+        pending,
+        error,
+        detail,
+        roles,
+        branches,
+        restricted,
+        set,
+        submit,
+    } = useUserForm({ readonly });
+
     if (ci && detail.isLoading)
         return <Loading />;
+
     if (detail.error)
-        return <ErrorBox error={detail.error} retry={() => void detail.mutate()}/>;
+        return <ErrorBox error={detail.error} retry={() => void detail.mutate()} />;
+
     if (restricted)
-        return <Card><Empty title="Operación restringida" text="Tu rol no tiene autorización para modificar esta cuenta."/></Card>;
-    return <form onSubmit={submit}><FormTop title={readonly ? 'Detalle del usuario' : ci ? 'Editar Usuario' : 'Crear Usuario'} back="/usuarios" saving={pending} readonly={readonly} saveLabel="Guardar Usuario"/><ErrorBox error={error || roles.error || branches.error}/><Card title="Información del usuario" subtitle={readonly ? 'Datos registrados y asignación de acceso.' : 'Ingrese los datos personales y de acceso del usuario.'}><fieldset disabled={readonly || pending} className="form-grid"><Field label="CI"><input required value={form.ci} onChange={set('ci')} readOnly={!!ci} maxLength={20} minLength={3} pattern="[A-Za-z0-9\-]{3,20}" title="Entre 3 y 20 letras, números o guiones." autoComplete="off"/></Field><Field label="Nombre completo"><input required value={form.nombre} onChange={set('nombre')} maxLength={100} autoComplete="name"/></Field><Field label="Correo electrónico"><input required type="email" value={form.correo} onChange={set('correo')} maxLength={100} autoComplete="email"/></Field><Field label="Teléfono"><input required type="tel" value={form.telefono} onChange={set('telefono')} maxLength={30} autoComplete="tel"/></Field><Field label="Cargo (opcional)"><input value={form.cargo} onChange={set('cargo')} maxLength={100}/></Field><Field label="Sexo"><select value={form.sexo} onChange={set('sexo')} required><option value="M">Masculino</option><option value="F">Femenino</option><option value="O">Otro</option><option value="No especificado">No especificado</option></select></Field><Field label="Domicilio" className="full-width"><textarea required value={form.domicilio} onChange={set('domicilio')} maxLength={255} autoComplete="street-address"/></Field><Field label="Rol">{readonly ? <input value={detail.data?.rol.nombre || ''} readOnly/> : <select required value={form.rolId} onChange={set('rolId')}><option value="">Seleccione un rol</option>{roles.data?.map(role => <option key={role.id} value={role.id}>{role.nombre}</option>)}</select>}</Field><Field label="Sucursal (opcional)">{readonly ? <input value={detail.data?.sucursal?.nombre || 'Sin sucursal asignada'} readOnly/> : <select value={form.sucursalId} onChange={set('sucursalId')}><option value="">Sin sucursal asignada</option>{branches.data?.map(branch => <option key={branch.id} value={branch.id}>{branch.nombre}</option>)}</select>}</Field>{!readonly && <Field label={ci ? 'Nueva contraseña (opcional)' : 'Contraseña'} hint={ci ? 'Deje en blanco para conservar la actual. Mínimo 8 caracteres, mayúscula, minúscula, número y símbolo.' : 'Mínimo 8 caracteres, con mayúscula, minúscula, número y símbolo.'} className="full-width"><PasswordInput required={!ci} value={form.contrasena} onChange={set('contrasena')} autoComplete="new-password" minLength={8} maxLength={128} pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9\s]).{8,}" title="Use al menos 8 caracteres con mayúscula, minúscula, número y símbolo."/></Field>}</fieldset>{readonly && <div className="detail-status"><Status active={detail.data?.activo ?? false}/></div>}</Card></form>;
+        return (
+            <Card>
+                <Empty
+                    title="Operación restringida"
+                    text="Tu rol no tiene autorización para modificar esta cuenta."
+                />
+            </Card>
+        );
+
+    return (
+        <form onSubmit={submit}>
+            <FormTop
+                title={readonly ? 'Detalle del usuario' : ci ? 'Editar Usuario' : 'Crear Usuario'}
+                back="/usuarios"
+                saving={pending}
+                readonly={readonly}
+                saveLabel="Guardar Usuario"
+            />
+            <ErrorBox error={error || roles.error || branches.error} />
+
+            <Card
+                title="Información del usuario"
+                subtitle={
+                    readonly
+                        ? 'Datos registrados y asignación de acceso.'
+                        : 'Ingrese los datos personales y de acceso del usuario.'
+                }
+            >
+                <fieldset disabled={readonly || pending} className="form-grid">
+                    <Field label="CI">
+                        <input
+                            required
+                            value={form.ci}
+                            onChange={set('ci')}
+                            readOnly={!!ci}
+                            maxLength={20}
+                            minLength={3}
+                            pattern="[A-Za-z0-9\-]{3,20}"
+                            title="Entre 3 y 20 letras, números o guiones."
+                            autoComplete="off"
+                        />
+                    </Field>
+                    <Field label="Nombre completo">
+                        <input
+                            required
+                            value={form.nombre}
+                            onChange={set('nombre')}
+                            maxLength={100}
+                            autoComplete="name"
+                        />
+                    </Field>
+                    <Field label="Correo electrónico">
+                        <input
+                            required
+                            type="email"
+                            value={form.correo}
+                            onChange={set('correo')}
+                            maxLength={100}
+                            autoComplete="email"
+                        />
+                    </Field>
+                    <Field label="Teléfono">
+                        <input
+                            required
+                            type="tel"
+                            value={form.telefono}
+                            onChange={set('telefono')}
+                            maxLength={30}
+                            autoComplete="tel"
+                        />
+                    </Field>
+                    <Field label="Cargo (opcional)">
+                        <input
+                            disabled={detail.data?.rol.codigo === 'ASU'}
+                            value={form.cargo}
+                            onChange={set('cargo')}
+                            maxLength={100}
+                        />
+                    </Field>
+                    <Field label="Sexo">
+                        <select
+                            disabled={detail.data?.rol.codigo === 'ASU'}
+                            value={form.sexo}
+                            onChange={set('sexo')}
+                            required
+                        >
+                            <option value="M">Masculino</option>
+                            <option value="F">Femenino</option>
+                            <option value="O">Otro</option>
+                            <option value="No especificado">No especificado</option>
+                        </select>
+                    </Field>
+                    <Field label="Domicilio" className="full-width">
+                        <textarea
+                            required
+                            value={form.domicilio}
+                            onChange={set('domicilio')}
+                            maxLength={255}
+                            autoComplete="street-address"
+                        />
+                    </Field>
+                    <Field label="Rol">
+                        {readonly || detail.data?.rol.codigo === 'ASU' ? (
+                            <input value={detail.data?.rol.nombre || ''} readOnly />
+                        ) : (
+                            <select required value={form.rolId} onChange={set('rolId')}>
+                                <option value="">Seleccione un rol</option>
+                                {roles.data?.map(role => (
+                                    <option key={role.id} value={role.id}>
+                                        {role.nombre}
+                                    </option>
+                                ))}
+                            </select>
+                        )}
+                    </Field>
+                    <Field label="Sucursal (opcional)">
+                        {readonly || detail.data?.rol.codigo === 'ASU' ? (
+                            <input
+                                value={detail.data?.sucursal?.nombre || 'Sin sucursal asignada'}
+                                readOnly
+                            />
+                        ) : (
+                            <select value={form.sucursalId} onChange={set('sucursalId')}>
+                                <option value="">Sin sucursal asignada</option>
+                                {branches.data?.map(branch => (
+                                    <option key={branch.id} value={branch.id}>
+                                        {branch.nombre}
+                                    </option>
+                                ))}
+                            </select>
+                        )}
+                    </Field>
+                    {!readonly && detail.data?.rol.codigo !== 'ASU' && (
+                        <Field
+                            label={ci ? 'Nueva contraseña (opcional)' : 'Contraseña'}
+                            hint={
+                                ci
+                                    ? 'Deje en blanco para conservar la actual. Mínimo 8 caracteres, mayúscula, minúscula, número y símbolo.'
+                                    : 'Mínimo 8 caracteres, con mayúscula, minúscula, número y símbolo.'
+                            }
+                            className="full-width"
+                        >
+                            <PasswordInput
+                                required={!ci}
+                                value={form.contrasena}
+                                onChange={set('contrasena')}
+                                autoComplete="new-password"
+                                minLength={8}
+                                maxLength={128}
+                                pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9\s]).{8,}"
+                                title="Use al menos 8 caracteres con mayúscula, minúscula, número y símbolo."
+                            />
+                        </Field>
+                    )}
+                </fieldset>
+
+                {readonly && (
+                    <div className="detail-status">
+                        <Status active={detail.data?.activo ?? false} />
+                    </div>
+                )}
+            </Card>
+
+        </form>
+    );
 }

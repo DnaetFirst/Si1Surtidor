@@ -10,6 +10,15 @@ export interface CreateUserDto {
     rolId: number;
     sucursalId?: number | null;
 }
+
 export interface UpdateUserDto extends Partial<CreateUserDto> {
     contrasena?: string;
+}
+
+export interface UpdateProfileDto
+    extends Pick<
+        UpdateUserDto,
+        'nombre' | 'correo' | 'telefono' | 'domicilio' | 'contrasena'
+    > {
+    contrasenaActual?: string;
 }

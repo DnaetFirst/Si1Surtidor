@@ -21,7 +21,7 @@ export function useUsers() {
     const [target, setTarget] = useState<User | null>(null);
     const { data, error, isLoading, mutate } = useSWR<PageData<User>>(usersApi.listKey(page, search, active));
     useEffect(() => setPage(1), [search, active]);
-    const protectedUser = (row: User) => row.rol.codigo === 'ASU' && user?.rol.codigo !== 'ASU';
+    const protectedUser = (row: User) => row.rol.codigo === 'ASU';
     const disableSelected = () => target ? usersApi.disable(target) : Promise.reject(new Error('Seleccione un registro.'));
     return { user, dispatch, q, setQ, page, setPage, active, setActive, filters, setFilters, target, setTarget, data, error, isLoading, mutate, protectedUser, disableSelected };
 }
@@ -45,12 +45,13 @@ export function useUserForm({ readonly = false }: {
         setForm({ ci: d.ci, nombre: d.nombre, correo: d.correo, telefono: d.telefono, cargo: d.cargo || '', sexo: d.sexo, domicilio: d.domicilio, contrasena: '', rolId: String(d.rolId ?? d.rol.id), sucursalId: d.sucursalId ? String(d.sucursalId) : '' });
         loaded.current = d.ci;
     } }, [detail.data]);
-    const restricted = !readonly && (!allowed(user, 'usuarios', ci ? 'editar' : 'crear') || detail.data?.rol.codigo === 'ASU' && user?.rol.codigo !== 'ASU');
+    const restricted = !readonly && (!allowed(user, 'usuarios', ci ? 'editar' : 'crear') || detail.data?.rol.codigo === 'ASU');
     const set = (key: keyof typeof blankUser) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setForm(f => ({ ...f, [key]: e.target.value }));
     async function submit(e: FormEvent) { e.preventDefault(); setError(null); setPending(true); try {
         const { contrasena, ci: identifier, ...rest } = form;
         const payload = { ...rest, nombre: form.nombre.trim(), correo: form.correo.trim(), rolId: Number(form.rolId), sucursalId: form.sucursalId ? Number(form.sucursalId) : null, ...(!ci ? { ci: identifier.trim() } : {}), ...(contrasena ? { contrasena } : {}) };
         await usersApi.save(ci, payload);
+        if (ci) await detail.mutate();
         dispatch(setNotice(ci ? 'Usuario actualizado correctamente.' : 'Usuario creado correctamente.'));
         navigate('/usuarios');
     }

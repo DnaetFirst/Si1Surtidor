@@ -6,15 +6,22 @@ import { AdministrationPolicy } from '../../domain/administration-policy';
 import { assertPermissionSelection } from '../../domain/protection';
 import { RoleDto, UpdateRoleDto } from '../domain/commands';
 import { RolesRepository } from '../domain/repository';
+import { assertProtectedPermissions, protectedPermissionIds } from '../domain/protected-permissions';
 @Injectable()
 export class RolesService {
     constructor(private readonly repository: RolesRepository, private readonly transactions: AdministrativeTransaction, private readonly policy: AdministrationPolicy) { }
-    roles(query: ListQuery) { return this.repository.roles(query); }
-    role(id: number, tx?: TransactionContext) { return this.repository.role(id, tx); }
+    async roles(query: ListQuery) {
+        const result = await this.repository.roles(query);
+        return { ...result, items: result.items.map(role => ({ ...role, permisosProtegidos: protectedPermissionIds(role) })) };
+    }
+    async role(id: number, tx?: TransactionContext) {
+        const role = await this.repository.role(id, tx);
+        return { ...role, permisosProtegidos: protectedPermissionIds(role) };
+    }
     roleOptions(req: AuthRequest) { return this.repository.roleOptions(req); }
-    private async setPermissions(tx: TransactionContext, roleId: number, ids: number[], req: AuthRequest) {
+    private async setPermissions(tx: TransactionContext, roleId: number, ids: number[], req: AuthRequest, retainedReserved: number[] = []) {
         const permissions = ids.length ? await this.repository.activePermissions(ids, tx) : [];
-        assertPermissionSelection(req.user.rol.codigo, ids.length, permissions);
+        assertPermissionSelection(req.user.rol.codigo, ids.length, permissions.map(p => ({ ...p, reservado: p.reservado && !retainedReserved.includes(p.id) })));
         await this.repository.clearPermissions(roleId, tx);
         if (ids.length)
             await this.repository.assignPermissions(roleId, ids, tx);
@@ -29,14 +36,21 @@ export class RolesService {
     async updateRole(id: number, dto: UpdateRoleDto, req: AuthRequest) {
         return this.transactions.mutation(req, 'roles.editar', 'rol', async (tx) => {
             const existing = await this.repository.role(id, tx);
-            if ((existing.codigo === 'ASU' || existing.permisos.some((permission: {
+            const asuManagedByATI = existing.codigo === 'ASU' && req.user.rol.codigo === 'ATI';
+            if (existing.codigo === 'ASU' && !asuManagedByATI)
+                throw new ForbiddenException('Los permisos adicionales del ASU se administran mediante ATI.');
+            if (!asuManagedByATI && (existing.permisos.some((permission: {
                 reservado: boolean;
             }) => permission.reservado)) && !(req.user.rol.codigo === 'ASU'))
                 throw new ForbiddenException('El rol y los privilegios del ASU están protegidos.');
+            if (existing.codigo === 'ASU' && dto.nombre !== undefined && dto.nombre !== existing.nombre)
+                throw new ConflictException('El nombre del rol Super Usuario está protegido.');
             if (dto.nombre !== undefined)
                 await this.repository.rename(dto, id, tx);
-            if (dto.permisoIds !== undefined)
-                await this.setPermissions(tx, id, dto.permisoIds, req);
+            if (dto.permisoIds !== undefined) {
+                assertProtectedPermissions(existing, dto.permisoIds);
+                await this.setPermissions(tx, id, dto.permisoIds, req, asuManagedByATI ? existing.permisos.filter(p => p.reservado).map(p => p.id) : []);
+            }
             await this.policy.assertLastATI(tx);
             return this.repository.role(id, tx);
         });
@@ -44,7 +58,7 @@ export class RolesService {
     async disableRole(id: number, req: AuthRequest) {
         return this.transactions.mutation(req, 'roles.deshabilitar', 'rol', async (tx) => {
             const existing = await this.repository.role(id, tx);
-            if (existing.codigo === 'ASU' && !(req.user.rol.codigo === 'ASU'))
+            if (existing.codigo === 'ASU')
                 throw new ForbiddenException('El rol ASU está protegido.');
             const [{ existe }] = await this.repository.assignments(id, tx);
             if (existe)

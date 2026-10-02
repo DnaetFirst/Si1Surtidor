@@ -53,14 +53,14 @@ test('Ciclo 1: integración HTTP con PostgreSQL', { timeout: 120_000 }, async t 
     expected(await asu.request('GET', '/usuarios'), 403);
   });
 
-  await t.test('ATI no modifica ASU ni concede su rol', async () => {
+  await t.test('ATI consulta ASU pero no modifica su cuenta', async () => {
     const listado = expected(await ati.request('GET', `/usuarios?q=${encodeURIComponent(asuCredentials.correo)}`), 200);
     assert.ok(listado.items.some(user => user.ci === asuUser.ci), 'ATI puede consultar los datos básicos ASU');
-    expected(await ati.request('PATCH', `/usuarios/${asuUser.ci}`, { nombre: 'No permitido' }), 403);
-    expected(await ati.request('POST', `/usuarios/${asuUser.ci}/deshabilitar`, {}), 403);
+    expected(await ati.request('PATCH', `/usuarios/${asuUser.ci}`, { nombre: asuUser.nombre, telefono: '736278334' }), 403);
+    expected(await ati.request('POST', `/usuarios/${asuUser.ci}/deshabilitar`, {}), 409);
     const asuRole = asuUser.rol;
     expected(await ati.request('POST', '/usuarios', userPayload(`${suffix}1`, asuRole.id)), 403);
-    expected(await ati.request('PATCH', `/roles/${asuRole.id}`, { nombre: 'No permitido' }), 403);
+    expected(await ati.request('PATCH', `/roles/${asuRole.id}`, { nombre: 'No permitido' }), 409);
     const permisos = expected(await asu.request('GET', '/permisos?pageSize=100'), 200).items;
     const asignables = expected(await ati.request('GET', '/permisos/asignables'), 200);
     for (const permiso of permisos.filter(item => !item.reservado)) assert.ok(asignables.some(item => item.id === permiso.id), `Permiso visible para ATI: ${permiso.codigo}`);
@@ -257,5 +257,40 @@ test('Ciclo 1: integración HTTP con PostgreSQL', { timeout: 120_000 }, async t 
         await assert.rejects(db.query('DELETE FROM bitacora WHERE id=$1', [events.items[0].id]), /eliminar/i);
       } finally { await db.end(); }
     }
+  });
+
+  await t.test('ASU: perfil propio, permisos esenciales, adicionales ATI y contraseña propia', async () => {
+    const own = expected(await asu.request('GET', '/usuarios/mi-perfil'), 200);
+    expected(await asu.request('PATCH', '/usuarios/mi-perfil', { telefono: '712345678', domicilio: 'Domicilio de prueba' }), 200);
+    expected(await asu.request('PATCH', '/usuarios/mi-perfil', { rolId: atiUser.rol.id }), 400);
+    expected(await asu.request('PATCH', '/usuarios/mi-perfil', { contrasena: newPassword, contrasenaActual: 'Incorrecta#9' }), 403);
+    expected(await ati.request('PATCH', '/usuarios/' + asuUser.ci, { contrasena: newPassword }), 403);
+    expected(await ati.request('PATCH', '/usuarios/' + asuUser.ci, { rolId: atiUser.rol.id }), 403);
+    const role = expected(await ati.request('GET', '/roles/' + asuUser.rol.id), 200);
+    assert.equal(role.permisosProtegidos.length, 4);
+    const base = role.permisos.map(p => p.id);
+    for (const protectedId of role.permisosProtegidos) {
+      expected(await ati.request('PATCH', '/roles/' + role.id, { permisoIds: base.filter(id => id !== protectedId) }), 409);
+    }
+    expected(await ati.request('POST', '/roles/' + role.id + '/deshabilitar', {}), 403);
+    const all = expected(await ati.request('GET', '/permisos/asignables'), 200);
+    const extra = all.find(p => p.codigo === 'empresa.gestionar');
+    expected(await ati.request('PATCH', '/roles/' + role.id, { nombre: role.nombre, permisoIds: [...base, extra.id] }), 200);
+    expected(await asu.request('GET', '/empresa'), 200);
+    expected(await ati.request('PATCH', '/roles/' + role.id, { permisoIds: base }), 200);
+    expected(await asu.request('GET', '/empresa'), 403);
+    const reserved = expected(await asu.request('POST', '/permisos', { nombre: 'Extra reservado ' + suffix, descripcion: 'Prueba', modulo: 'permisos', accion: 'ver' }), 201);
+    expected(await ati.request('PATCH', '/roles/' + role.id, { permisoIds: [...base, reserved.id] }), 403);
+    const oldSession = asu.clone();
+    accepted(await ati.request('POST', '/usuarios/' + asuUser.ci + '/restablecer-contrasena', {}), [404, 405]);
+    expected(await asu.request('PATCH', '/usuarios/mi-perfil', { contrasena: newPassword, contrasenaActual: asuCredentials.contrasena }), 200);
+    expected(await oldSession.request('GET', '/auth/me'), 401);
+    expected(await asu.login(asuCredentials.correo, newPassword), 200);
+    expected(await asu.request('PATCH', '/usuarios/mi-perfil', { nombre: own.nombre, correo: own.correo, telefono: own.telefono, domicilio: own.domicilio, contrasena: asuCredentials.contrasena, contrasenaActual: newPassword }), 200);
+    expected(await asu.request('GET', '/auth/me'), 401);
+    expected(await asu.login(asuCredentials.correo, asuCredentials.contrasena), 200);
+    const audit = expected(await asu.request('GET', '/bitacora?accion=perfil.editar'), 200);
+    assert.ok(audit.total > 0);
+    assert.ok(!JSON.stringify(audit).includes(newPassword));
   });
 });

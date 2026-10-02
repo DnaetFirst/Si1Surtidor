@@ -5,5 +5,6 @@ export interface Role {
     nombre: string;
     activo: boolean;
     permisos: Permission[];
+    permisosProtegidos?: number[];
     usuariosCount: number;
 }

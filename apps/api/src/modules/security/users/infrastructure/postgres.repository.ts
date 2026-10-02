@@ -12,6 +12,11 @@ const userJoin = 'usuario u JOIN rol r ON r.id=u.id_rol LEFT JOIN sucursal s ON 
 @Injectable()
 export class PostgresUsersRepository extends UsersRepository {
     constructor(private readonly db: DataSource) { super(); }
+    async passwordHash(ci: string, tx: TransactionContext) {
+        const [row] = await database(this.db, tx).query('SELECT password_hash FROM usuario WHERE ci=$1', [ci]);
+        if (!row) throw new NotFoundException('Usuario no encontrado.');
+        return row.password_hash;
+    }
     async users(query: ListQuery) {
         const { params, where } = filters(query, 'u.');
         if (query.q) {

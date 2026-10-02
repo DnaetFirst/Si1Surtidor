@@ -54,6 +54,7 @@ export function usePermissionForm() {
     const readonly = !allowed(user, 'permisos', id ? 'editar' : 'crear');
     async function submit(e: FormEvent) { e.preventDefault(); const capability = capabilities.data?.find(c => c.codigo === form.codigo); setError(null); setPending(true); try {
         await permissionsApi.save(id, form, capability);
+        if (id) await detail.mutate();
         dispatch(setNotice(id ? 'Permiso actualizado correctamente.' : 'Permiso creado correctamente.'));
         navigate('/usuarios/permisos');
     }
