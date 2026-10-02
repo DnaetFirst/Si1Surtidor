@@ -1,0 +1,44 @@
+services:
+  database:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-surtidor}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Configure POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-surtidor}
+    volumes:
+      - database:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+  api:
+    build:
+      context: .
+      dockerfile: infrastructure/api.Dockerfile
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-surtidor}:${POSTGRES_PASSWORD}@database:5432/${POSTGRES_DB:-surtidor}
+      JWT_SECRET: ${JWT_SECRET:?Configure JWT_SECRET}
+      CSRF_SECRET: ${CSRF_SECRET:?Configure CSRF_SECRET}
+      BOOTSTRAP_ASU_EMAIL: ${BOOTSTRAP_ASU_EMAIL}
+      BOOTSTRAP_ASU_PASSWORD: ${BOOTSTRAP_ASU_PASSWORD}
+      BOOTSTRAP_ATI_EMAIL: ${BOOTSTRAP_ATI_EMAIL}
+      BOOTSTRAP_ATI_PASSWORD: ${BOOTSTRAP_ATI_PASSWORD}
+      WEB_ORIGIN: ${DEPLOY_ORIGIN:-http://localhost:8080}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      TRUST_PROXY: 'true'
+      PORT: 3000
+    depends_on:
+      database:
+        condition: service_healthy
+    restart: unless-stopped
+  web:
+    build:
+      context: .
+      dockerfile: infrastructure/web.Dockerfile
+    ports: ["127.0.0.1:8080:80"]
+    depends_on: [api]
+    restart: unless-stopped
+volumes:
+  database:

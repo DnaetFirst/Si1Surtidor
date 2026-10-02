@@ -1,0 +1,26 @@
+import { PlusCircle, ShieldCheck } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Confirm } from '../../../../shared/presentation/dialogs';
+import { Empty, ErrorBox, Loading, Status } from '../../../../shared/presentation/feedback';
+import { Field, SearchInput, Switch } from '../../../../shared/presentation/forms';
+import { Card, FormTop, PageHeading } from '../../../../shared/presentation/layout';
+import { Pagination, RowMenu } from '../../../../shared/presentation/table';
+import { allowed, setNotice } from '../../auth/application/session';
+import { useRoleForm, useRoles } from '../application/use-roles';
+import { moduleLabels } from '../domain/form';
+export function Roles() {
+    const { user, dispatch, q, setQ, page, setPage, active, setActive, target, setTarget, data, error, isLoading, mutate, disableSelected } = useRoles();
+    return <div><PageHeading title="Roles" subtitle="Organice el acceso de los usuarios al sistema">{allowed(user, 'roles', 'crear') && <Link to="/usuarios/roles/crear" className="button primary" style={{ background: '#000', color: '#fff', border: 'none' }}><PlusCircle size={16}/>Agregar Rol</Link>}</PageHeading><Card><div className="table-toolbar"><SearchInput value={q} onChange={setQ} placeholder="Buscar roles…"/><label className="select-filter"><span>Estado</span><select value={active} onChange={e => setActive(e.target.value)}><option value="true">Activos</option><option value="false">Inactivos</option><option value="all">Todos</option></select></label></div><ErrorBox error={error} retry={() => void mutate()}/>{isLoading ? <Loading /> : data && <><div className="table-scroll"><table><thead><tr><th>Nombre</th><th>Permisos</th><th>Usuarios asignados</th><th>Estado</th><th><span className="sr-only">Acciones</span></th></tr></thead><tbody>{data.items.map(role => <tr key={role.id}><td><span className="inline"><ShieldCheck size={17}/>{role.nombre}{role.codigo === 'ASU' && <span className="badge">Protegido</span>}</span></td><td>{role.permisos?.length || 0}</td><td>{role.usuariosCount ?? '—'}</td><td><Status active={role.activo}/></td><td className="menu-cell"><RowMenu label={role.nombre}>{role.codigo !== 'ASU' || user?.rol.codigo === 'ASU' ? <><Link to={`/usuarios/roles/${role.id}/editar`}>{allowed(user, 'roles', 'editar') ? 'Editar rol' : 'Ver permisos'}</Link>{role.activo && allowed(user, 'roles', 'deshabilitar') && <button onClick={() => setTarget(role)}>Deshabilitar</button>}</> : <span className="menu-note">Rol protegido del ASU</span>}</RowMenu></td></tr>)}</tbody></table></div>{!data.items.length && <Empty />}<Pagination page={page} pageSize={10} total={data.total} onChange={setPage}/></>}</Card>{target && <Confirm title="Deshabilitar rol" description={`¿Deseas deshabilitar el rol «${target.nombre}»? Solo es posible si no tiene usuarios asignados.`} action={() => disableSelected()} onClose={() => setTarget(null)} onSuccess={() => { void mutate(); dispatch(setNotice('Rol deshabilitado correctamente.')); }}/>}</div>;
+}
+export function RoleForm() {
+    const { id, user, nombre, setNombre, selected, setSelected, error, pending, detail, permissions, readonly, groups, submit } = useRoleForm();
+    if (detail.isLoading || permissions.isLoading)
+        return <Loading />;
+    if (detail.error || permissions.error)
+        return <ErrorBox error={detail.error || permissions.error} retry={() => { void detail.mutate(); void permissions.mutate(); }}/>;
+    if (detail.data?.codigo === 'ASU' && user?.rol.codigo !== 'ASU')
+        return <Card><Empty title="Rol protegido" text="El rol del ASU solo puede ser administrado por el ASU."/></Card>;
+    if (!id && readonly)
+        return <Card><Empty title="Operación restringida" text="Tu rol no tiene autorización para crear roles."/></Card>;
+    return <form onSubmit={submit}><FormTop title={id ? readonly ? 'Detalle del Rol' : 'Editar Rol' : 'Crear Rol'} back="/usuarios/roles" saving={pending} readonly={readonly} saveLabel="Guardar Rol"/><ErrorBox error={error}/><Card title="Detalles del Rol" subtitle="Ingrese los detalles del rol"><Field label="Nombre"><input required maxLength={100} value={nombre} onChange={e => setNombre(e.target.value)} disabled={readonly || pending}/></Field></Card><Card title="Permisos" subtitle="Seleccione los permisos para el rol"><div className="permission-groups">{Object.entries(groups).map(([module, list]) => <fieldset className="permission-group" key={module}><legend>{moduleLabels[module] || module}</legend>{list.map(permission => <div className="permission-toggle" key={permission.id}><div><span>{permission.nombre}</span><p>{permission.descripcion}</p></div><Switch checked={selected.includes(permission.id)} disabled={readonly || pending || permission.reservado && user?.rol.codigo !== 'ASU'} label={`Permiso ${permission.nombre}`} onChange={() => setSelected(ids => ids.includes(permission.id) ? ids.filter(v => v !== permission.id) : [...ids, permission.id])}/></div>)}</fieldset>)}</div>{!permissions.data?.length && <Empty title="No hay permisos asignables" text="El ASU debe configurar los permisos antes de asignarlos a un rol."/>}</Card></form>;
+}

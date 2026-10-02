@@ -1,0 +1,18 @@
+import { ErrorBox, Loading, Empty } from '../../../../shared/presentation/feedback';
+import { Field } from '../../../../shared/presentation/forms';
+import { Card, FormTop, PageHeading } from '../../../../shared/presentation/layout';
+import { useCompanyPage } from '../application/use-company';
+export function CompanyPage() {
+    const { error, isLoading, mutate, form, pending, saveError, readonly, set, submit, isEditing, startEdit, cancelEdit, data } = useCompanyPage();
+    if (isLoading)
+        return <Loading />;
+    if (error)
+        return <ErrorBox error={error} retry={() => void mutate()}/>;
+    if (!isEditing) {
+        if (!data) {
+            return <div className="company-page"><PageHeading title="Gestionar Empresa" /><Card><Empty title="No hay empresa registrada" text="Aún no has registrado los datos de la empresa en el sistema." />{!readonly && <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}><button className="button primary" onClick={startEdit}>Registrar Empresa</button></div>}</Card></div>;
+        }
+        return <div className="company-page"><FormTop title="Detalles de la Empresa" back="/" readonly>{!readonly && <button className="button primary" onClick={startEdit}>Modificar</button>}</FormTop><Card title="Información de la Empresa" subtitle="Visualizando los datos de la empresa."><fieldset disabled className="form-grid"><Field label="Nombre"><input value={data.nombre} /></Field><Field label="Teléfono"><input value={data.telefono} /></Field><Field label="Dirección" className="full-width"><textarea value={data.direccion} /></Field><Field label="Nombre del propietario"><input value={data.nombrePropietario} /></Field><Field label="Fecha de creación"><input type="date" value={data.fechaCreacion.slice(0, 10)} /></Field><Field label="Correo electronico"><input type="email" value={data.correo} /></Field><Field label="Nit"><input value={data.nit} /></Field></fieldset></Card></div>;
+    }
+    return <form onSubmit={submit}><FormTop title={data ? "Modificar Empresa" : "Registrar Empresa"} saving={pending} readonly={readonly} saveLabel="Guardar"><button type="button" className="button" onClick={cancelEdit} disabled={pending}>Cancelar</button></FormTop><ErrorBox error={saveError}/><Card title="Información de la Empresa" subtitle={data ? "Modifique los detalles de la empresa." : "Ingrese los datos empresa al sistema."}><fieldset disabled={pending || readonly} className="form-grid"><Field label="Nombre"><input required maxLength={100} value={form.nombre} onChange={set('nombre')} autoComplete="organization"/></Field><Field label="Teléfono"><input required type="tel" maxLength={30} value={form.telefono} onChange={set('telefono')} autoComplete="tel"/></Field><Field label="Dirección" className="full-width"><textarea required maxLength={255} value={form.direccion} onChange={set('direccion')} autoComplete="street-address"/></Field><Field label="Nombre del propietario"><input required maxLength={100} value={form.nombrePropietario} onChange={set('nombrePropietario')}/></Field><Field label="Fecha de creación"><input required type="date" value={form.fechaCreacion} onChange={set('fechaCreacion')}/></Field><Field label="Correo electronico"><input required type="email" maxLength={100} value={form.correo} onChange={set('correo')} autoComplete="email"/></Field><Field label="Nit"><input required maxLength={20} value={form.nit} onChange={set('nit')} inputMode="numeric"/></Field><div style={{ display: 'none' }}><Field label="URL del logo (opcional)" className="full-width"><input type="url" maxLength={2048} value={form.logoUrl || ''} onChange={set('logoUrl')} placeholder="https://ejemplo.com/logo.png"/></Field></div></fieldset></Card></form>;
+}

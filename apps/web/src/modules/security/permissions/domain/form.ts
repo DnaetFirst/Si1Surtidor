@@ -1,0 +1,1 @@
+export const labels: Record<string, string> = { usuarios: 'Usuarios', roles: 'Roles', permisos: 'Permisos', empresa: 'Empresa', bitacora: 'Bitácora', gestionar: 'Administrar', ver: 'Consultar', crear: 'Crear', editar: 'Editar', deshabilitar: 'Deshabilitar', exportar: 'Exportar', archivar: 'Archivar' };
