@@ -9,7 +9,7 @@ import { database } from '../../../../shared/infrastructure/persistence/transact
 import { RoleDto, UpdateRoleDto } from '../domain/commands';
 import { RolesRepository } from '../domain/repository';
 const roleFields = `r.id,r.codigo,r.nombre,r.activo,r.created_at AS "createdAt",
-  (SELECT count(*)::int FROM usuario u WHERE u.id_rol=r.id) AS "usuariosCount",
+  (SELECT count(*)::int FROM usuario u WHERE u.id_rol=r.id AND u.activo=true) AS "usuariosCount",
   COALESCE((SELECT json_agg(json_build_object('id',p.id,'codigo',p.codigo,'nombre',p.nombre,'descripcion',p.descripcion,'modulo',p.modulo,'accion',p.accion,'reservado',p.reservado,'activo',p.activo) ORDER BY p.modulo,p.accion) FROM permiso p JOIN permiso_rol pr ON pr.id_permiso=p.id WHERE pr.id_rol=r.id),'[]'::json) AS permisos`;
 @Injectable()
 export class PostgresRolesRepository extends RolesRepository {
@@ -38,6 +38,6 @@ export class PostgresRolesRepository extends RolesRepository {
     async assignPermissions(roleId: number, ids: number[], tx?: TransactionContext) { return database(this.db, tx).query('INSERT INTO permiso_rol(id_rol,id_permiso) SELECT $1,unnest($2::int[])', [roleId, ids]); }
     async insert(dto: RoleDto, tx?: TransactionContext) { return database(this.db, tx).query('INSERT INTO rol(codigo,nombre) VALUES($1,$2) RETURNING id', [`CUSTOM_${randomUUID()}`, dto.nombre]); }
     async rename(dto: UpdateRoleDto, id: number, tx?: TransactionContext) { return database(this.db, tx).query('UPDATE rol SET nombre=$1 WHERE id=$2', [dto.nombre, id]); }
-    async assignments(id: number, tx?: TransactionContext) { return database(this.db, tx).query('SELECT EXISTS(SELECT 1 FROM usuario WHERE id_rol=$1) AS existe', [id]); }
+    async assignments(id: number, tx?: TransactionContext) { return database(this.db, tx).query('SELECT EXISTS(SELECT 1 FROM usuario WHERE id_rol=$1 AND activo=true) AS existe', [id]); }
     async disable(id: number, tx?: TransactionContext) { return database(this.db, tx).query('UPDATE rol SET activo=false WHERE id=$1', [id]); }
 }
