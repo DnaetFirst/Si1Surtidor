@@ -31,4 +31,10 @@ export abstract class SessionRepository {
     abstract revoke(session: {
         id: string;
     }, tx?: TransactionContext): Promise<unknown[]>;
+    abstract passwordResetIdentity(email: string): Promise<{ ci: string; correo: string }[]>;
+    abstract invalidatePasswordResets(ci: string, tx?: TransactionContext): Promise<unknown[]>;
+    abstract createPasswordReset(ci: string, tokenHash: string, expiresAt: Date, tx?: TransactionContext): Promise<unknown[]>;
+    abstract lockPasswordReset(tokenHash: string, tx?: TransactionContext): Promise<{ ci: string }[]>;
+    abstract updatePasswordAndRevokeSessions(ci: string, passwordHash: string, tx?: TransactionContext): Promise<unknown[]>;
+    abstract consumePasswordReset(tokenHash: string, tx?: TransactionContext): Promise<unknown[]>;
 }

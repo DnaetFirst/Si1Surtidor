@@ -1,6 +1,6 @@
 import { Body, Controller, Get, HttpCode, HttpException, Post, Req, Res } from '@nestjs/common';
 import { ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
-import { IsEmail, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsEmail, IsString, Matches, MaxLength, MinLength } from 'class-validator';
 import { Request, Response } from 'express';
 import { AuthService } from '../application/service';
 import { Public } from './decorators';
@@ -17,10 +17,36 @@ class LoginDto {
     @MaxLength(128)
     contrasena!: string;
 }
+class PasswordResetRequestDto {
+    @ApiProperty({ format: 'email', example: 'ronny0ronaldo@gmail.com' })
+    @IsEmail({}, { message: 'Ingresa un correo electrónico válido.' })
+    @MaxLength(100)
+    correo!: string;
+}
+class PasswordResetDto {
+    @ApiProperty({ maxLength: 64 })
+    @IsString()
+    @Matches(/^[a-f0-9]{64}$/, { message: 'El enlace de restablecimiento no es válido.' })
+    token!: string;
+    @ApiProperty({ minLength: 8, maxLength: 128 })
+    @IsString()
+    @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9\s]).{8,128}$/, {
+        message: 'La contraseña requiere 8–128 caracteres, mayúscula, minúscula, número y símbolo.'
+    })
+    contrasena!: string;
+}
 @ApiTags('Autenticación')
 @Controller('auth')
 export class AuthController {
     private readonly attempts = new Map<string, {
+        total: number;
+        until: number;
+    }>();
+    private readonly resetAttempts = new Map<string, {
+        total: number;
+        until: number;
+    }>();
+    private readonly resetCompletionAttempts = new Map<string, {
         total: number;
         until: number;
     }>();
@@ -64,6 +90,38 @@ export class AuthController {
         const result = await this.auth.login(dto.correo, dto.contrasena, req);
         this.cookies(res, result);
         return { user: result.user };
+    }
+    @Public()
+    @Post('password-reset/request')
+    @HttpCode(200)
+    async requestPasswordReset(@Body() dto: PasswordResetRequestDto, @Req() req: Request) {
+        const now = Date.now();
+        for (const [key, value] of this.resetAttempts)
+            if (value.until < now)
+                this.resetAttempts.delete(key);
+        const key = req.ip ?? 'unknown';
+        const rate = this.resetAttempts.get(key) ?? { total: 0, until: now + 15 * 60 * 1000 };
+        this.resetAttempts.set(key, rate);
+        if (++rate.total > 5)
+            throw new HttpException('Demasiadas solicitudes. Intenta nuevamente más tarde.', 429);
+        await this.auth.requestPasswordReset(dto.correo);
+        return { message: 'Si existe una cuenta asociada a ese correo, recibirás un enlace para restablecer la contraseña.' };
+    }
+    @Public()
+    @Post('password-reset/complete')
+    @HttpCode(200)
+    async resetPassword(@Body() dto: PasswordResetDto, @Req() req: Request) {
+        const now = Date.now();
+        for (const [key, value] of this.resetCompletionAttempts)
+            if (value.until < now)
+                this.resetCompletionAttempts.delete(key);
+        const key = req.ip ?? 'unknown';
+        const rate = this.resetCompletionAttempts.get(key) ?? { total: 0, until: now + 15 * 60 * 1000 };
+        this.resetCompletionAttempts.set(key, rate);
+        if (++rate.total > 10)
+            throw new HttpException('Demasiados intentos. Intenta nuevamente más tarde.', 429);
+        await this.auth.resetPassword(dto.token, dto.contrasena);
+        return { message: 'La contraseña se restableció correctamente.' };
     }
     @Get('me')
     me(

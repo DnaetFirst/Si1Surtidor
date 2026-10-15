@@ -59,7 +59,7 @@ test('Compartido no depende de módulos y no existen servicios generales de nego
 });
 
 test('Los paquetes futuros tienen cuatro capas sin rutas operativas', () => {
-  for (const root of roots) for (const feature of ['inventory', 'purchases', 'sales', 'reports']) {
+  for (const root of roots) for (const feature of ['purchases', 'sales', 'reports']) {
     for (const layer of ['presentation', 'application', 'domain', 'infrastructure']) {
       const dir = `${root}/modules/${feature}/${layer}`;
       assert.ok(existsSync(`${dir}/README.md`), dir);

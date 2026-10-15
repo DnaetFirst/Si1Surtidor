@@ -24,6 +24,8 @@ Abra **http://localhost:5173**. La API se encuentra en **http://localhost:3000/a
 
 `setup:local` genera credenciales aleatorias y las guarda en **`.local/ACCESO.txt`** y `.env`. No sobrescribe un `.env` existente. El seed no cambia contraseñas existentes ni reinicia permisos editados. Los archivos privados están excluidos de Git y de Docker.
 
+Para habilitar «¿Olvidaste tu contraseña?», configura `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD` y `SMTP_FROM` en `.env`. La recuperación envía un enlace al correo asociado a la cuenta; los enlaces vencen en 30 minutos y solo se pueden usar una vez. La primera vez que se migre una base existente, ejecuta `npm run db:migrate`. En el formulario de recuperación se propone `ronny0ronaldo@gmail.com`, que puedes cambiar si la cuenta usa otro correo.
+
 Los accesos iniciales son:
 
 - **ASU:** administración de permisos y consulta/exportación/archivo de bitácora.

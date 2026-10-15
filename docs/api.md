@@ -12,6 +12,8 @@ Base local: `http://127.0.0.1:3000/api`. La referencia OpenAPI se sirve desde la
 
 Todas las mutaciones, incluido login, renovación y cierre, requieren el token CSRF. Las cookies y el token deben pertenecer a la misma sesión de navegador. No se almacenan credenciales de sesión en localStorage.
 
+`POST /auth/password-reset/request` recibe `{ "correo": "..." }` y siempre responde con un mensaje genérico para no revelar si existe la cuenta. Si existe y está activa, envía un enlace de un solo uso que vence en 30 minutos. Requiere SMTP configurado (`SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD` y `SMTP_FROM`). `POST /auth/password-reset/complete` recibe `{ "token": "...", "contrasena": "..." }`, aplica la política habitual de contraseñas y revoca las sesiones activas.
+
 Códigos relevantes: `400` validación, `401` sesión o credenciales inválidas, `403` operación sin permiso o CSRF inválido, `404` recurso inexistente, `409` duplicado o restricción del negocio, `423` cuenta bloqueada temporalmente, `429` límite de intentos de acceso. El bloqueo devuelve `retryAfterSeconds`.
 
 ## Listados y consultas auxiliares

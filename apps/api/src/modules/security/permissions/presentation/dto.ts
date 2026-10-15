@@ -18,13 +18,13 @@ export class PermissionDto {
     @IsNotEmpty()
     @MaxLength(255)
     descripcion!: string;
-    @ApiProperty({ enum: ['usuarios', 'roles', 'permisos', 'empresa', 'bitacora'] })
+    @ApiProperty({ enum: ['usuarios', 'roles', 'permisos', 'empresa', 'bitacora', 'productos', 'combustibles', 'categorias', 'grupos', 'modulos'] })
     @IsString()
-    @IsIn(['usuarios', 'roles', 'permisos', 'empresa', 'bitacora'])
+    @IsIn(['usuarios', 'roles', 'permisos', 'empresa', 'bitacora', 'productos', 'combustibles', 'categorias', 'grupos', 'modulos'])
     modulo!: string;
-    @ApiProperty({ enum: ['gestionar', 'ver', 'crear', 'editar', 'deshabilitar', 'exportar', 'archivar'], description: 'Debe formar una capacidad válida con módulo; consultar /permisos/capacidades.' })
+    @ApiProperty({ enum: ['gestionar', 'ver', 'crear', 'editar', 'deshabilitar', 'exportar', 'archivar', 'eliminar'], description: 'Debe formar una capacidad válida con módulo; consultar /permisos/capacidades.' })
     @IsString()
-    @IsIn(['gestionar', 'ver', 'crear', 'editar', 'deshabilitar', 'exportar', 'archivar'])
+    @IsIn(['gestionar', 'ver', 'crear', 'editar', 'deshabilitar', 'exportar', 'archivar', 'eliminar'])
     accion!: string;
 }
 export class UpdatePermissionDto {

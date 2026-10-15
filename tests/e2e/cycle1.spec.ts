@@ -139,7 +139,10 @@ test('La navegación muestra solo módulos del ciclo 1 y respeta el actor', asyn
       await page.goto(actor === 'ATI' ? '/usuarios' : '/usuarios/permisos');
       const navigation = page.getByRole('complementary', { name: 'Navegación principal' });
       await expect(navigation.getByRole('link', { name: actor === 'ATI' ? 'Permisos' : 'Usuarios', exact: true })).toHaveCount(0);
-      for (const item of ['Dashboard', 'Sucursales', 'Inventario', 'Productos', 'Combustible', 'Categorías y Grupos', 'Ventas', 'Notas de venta', 'Descuentos', 'Compras', 'Proveedores', 'Órdenes de compra', 'Notas de compra', 'Notificaciones', 'Reportes', 'Configuración', 'Próximamente']) {
+      const futureItems = actor === 'ASU'
+        ? ['Dashboard', 'Sucursales', 'Inventario', 'Productos', 'Combustible', 'Categorías y Grupos', 'Ventas', 'Notas de venta', 'Descuentos', 'Compras', 'Proveedores', 'Órdenes de compra', 'Notas de compra', 'Notificaciones', 'Reportes', 'Configuración', 'Próximamente']
+        : ['Dashboard', 'Sucursales', 'Ventas', 'Notas de venta', 'Descuentos', 'Compras', 'Proveedores', 'Órdenes de compra', 'Notas de compra', 'Notificaciones', 'Reportes', 'Configuración', 'Próximamente'];
+      for (const item of futureItems) {
         await expect(navigation.getByText(item, { exact: true })).toHaveCount(0);
       }
       await page.goto(actor === 'ATI' ? '/empresa/bitacora' : '/usuarios');

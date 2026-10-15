@@ -41,8 +41,15 @@ export class PostgresUsersRepository extends UsersRepository {
         const entries = Object.entries(mapping).filter(([, value]) => value !== undefined);
         if (!entries.length)
             return [];
-        return database(this.db, tx).query(`UPDATE usuario SET ${entries.map(([key], index) => `${key}=$${index + 1}`).join(',')},updated_at=now() WHERE ci=$${entries.length + 1}`, [...entries.map(([, value]) => value), ci]);
+        const db = database(this.db, tx);
+        if (passwordHash || dto.correo !== undefined)
+            await db.query('UPDATE password_reset_token SET used_at=now() WHERE ci_usuario=$1 AND used_at IS NULL', [ci]);
+        return db.query(`UPDATE usuario SET ${entries.map(([key], index) => `${key}=$${index + 1}`).join(',')},updated_at=now() WHERE ci=$${entries.length + 1}`, [...entries.map(([, value]) => value), ci]);
     }
     async revokeSessions(ci: string, tx?: TransactionContext) { return database(this.db, tx).query('UPDATE sesion SET revoked_at=now() WHERE ci_usuario=$1 AND revoked_at IS NULL', [ci]); }
-    async disable(ci: string, tx?: TransactionContext) { return database(this.db, tx).query('UPDATE usuario SET activo=false,updated_at=now() WHERE ci=$1', [ci]); }
+    async disable(ci: string, tx?: TransactionContext) {
+        const db = database(this.db, tx);
+        await db.query('UPDATE password_reset_token SET used_at=now() WHERE ci_usuario=$1 AND used_at IS NULL', [ci]);
+        return db.query('UPDATE usuario SET activo=false,updated_at=now() WHERE ci=$1', [ci]);
+    }
 }

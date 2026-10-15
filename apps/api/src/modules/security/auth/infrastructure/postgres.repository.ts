@@ -45,4 +45,28 @@ export class PostgresSessionRepository extends SessionRepository {
     async revoke(session: {
         id: string;
     }, tx?: TransactionContext) { return database(this.db, tx).query('UPDATE sesion SET revoked_at=now() WHERE id=$1', [session.id]); }
+    async passwordResetIdentity(email: string) {
+        return this.db.query('SELECT ci,correo FROM usuario WHERE lower(correo)=$1 AND activo=true', [email]);
+    }
+    async invalidatePasswordResets(ci: string, tx?: TransactionContext) {
+        return database(this.db, tx).query('UPDATE password_reset_token SET used_at=now() WHERE ci_usuario=$1 AND used_at IS NULL', [ci]);
+    }
+    async createPasswordReset(ci: string, tokenHash: string, expiresAt: Date, tx?: TransactionContext) {
+        return database(this.db, tx).query('INSERT INTO password_reset_token(token_hash,ci_usuario,expires_at) VALUES($1,$2,$3)', [tokenHash, ci, expiresAt]);
+    }
+    async lockPasswordReset(tokenHash: string, tx?: TransactionContext) {
+        return database(this.db, tx).query(`SELECT pr.ci_usuario AS ci FROM password_reset_token pr
+        JOIN usuario u ON u.ci=pr.ci_usuario WHERE pr.token_hash=$1 AND pr.used_at IS NULL
+        AND pr.expires_at>now() AND u.activo=true FOR UPDATE OF pr`, [tokenHash]);
+    }
+    async updatePasswordAndRevokeSessions(ci: string, passwordHash: string, tx?: TransactionContext) {
+        const db = database(this.db, tx);
+        const result = await db.query(`UPDATE usuario SET password_hash=$2,intentos_fallidos=0,bloqueado_hasta=NULL,
+        updated_at=now() WHERE ci=$1`, [ci, passwordHash]);
+        await db.query('UPDATE sesion SET revoked_at=now() WHERE ci_usuario=$1 AND revoked_at IS NULL', [ci]);
+        return result;
+    }
+    async consumePasswordReset(tokenHash: string, tx?: TransactionContext) {
+        return database(this.db, tx).query('UPDATE password_reset_token SET used_at=now() WHERE token_hash=$1', [tokenHash]);
+    }
 }

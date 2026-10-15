@@ -1,11 +1,14 @@
-import { HttpException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, HttpException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { randomBytes } from 'node:crypto';
 import { AuditWriter, RequestContext, SessionUser, TransactionContext, UnitOfWork } from '../../../../shared/domain/context';
 import { PasswordHasher, SessionTokens } from '../domain/credentials';
+import { PasswordResetMailer } from '../domain/password-reset-mailer';
 import { SessionRepository } from '../domain/repository';
 @Injectable()
 export class AuthService {
     private readonly dummyHash: Promise<string>;
-    constructor(private readonly repository: SessionRepository, private readonly unitOfWork: UnitOfWork, private readonly passwords: PasswordHasher, private readonly tokens: SessionTokens, private readonly auditWriter: AuditWriter) { this.dummyHash = passwords.hash(tokens.dummyPassword()); }
+    private readonly logger = new Logger(AuthService.name);
+    constructor(private readonly repository: SessionRepository, private readonly unitOfWork: UnitOfWork, private readonly passwords: PasswordHasher, private readonly tokens: SessionTokens, private readonly auditWriter: AuditWriter, private readonly passwordResetMailer: PasswordResetMailer) { this.dummyHash = passwords.hash(tokens.dummyPassword()); }
     async getUser(ci: string, em?: TransactionContext): Promise<SessionUser | null> {
         const [row] = await this.repository.identity(ci, em);
         if (!row)
@@ -56,6 +59,37 @@ export class AuthService {
             throw new HttpException({ statusCode: outcome.error, message: outcome.message,
                 retryAfterSeconds: outcome.retryAfterSeconds }, outcome.error!);
         return outcome;
+    }
+    async requestPasswordReset(correo: string) {
+        const [user] = await this.repository.passwordResetIdentity(correo.trim().toLowerCase());
+        if (!user)
+            return;
+        const token = randomBytes(32).toString('hex');
+        const tokenHash = this.tokens.digest(token);
+        await this.unitOfWork.transaction(async tx => {
+            await this.repository.invalidatePasswordResets(user.ci, tx);
+            await this.repository.createPasswordReset(user.ci, tokenHash, new Date(Date.now() + 30 * 60 * 1000), tx);
+        });
+        try {
+            await this.passwordResetMailer.send(user.correo, token);
+        } catch (error) {
+            await this.unitOfWork.transaction(tx => this.repository.consumePasswordReset(tokenHash, tx));
+            this.logger.error('No se pudo enviar un correo de restablecimiento de contraseña.', error instanceof Error ? error.stack : undefined);
+        }
+    }
+    async resetPassword(token: string, password: string) {
+        const tokenHash = this.tokens.digest(token);
+        const passwordHash = await this.passwords.hash(password);
+        const reset = await this.unitOfWork.transaction(async tx => {
+            const [record] = await this.repository.lockPasswordReset(tokenHash, tx);
+            if (!record)
+                return false;
+            await this.repository.updatePasswordAndRevokeSessions(record.ci, passwordHash, tx);
+            await this.repository.consumePasswordReset(tokenHash, tx);
+            return true;
+        });
+        if (!reset)
+            throw new BadRequestException('El enlace de restablecimiento no es válido o venció. Solicita uno nuevo.');
     }
     async authenticate(token?: string): Promise<{
         user: SessionUser;

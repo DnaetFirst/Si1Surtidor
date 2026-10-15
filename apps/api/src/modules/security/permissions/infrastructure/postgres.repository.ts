@@ -28,8 +28,8 @@ export class PostgresPermissionsRepository extends PermissionsRepository {
     }
     async assignablePermissions(req: AuthRequest) {
         return this.db.query(`SELECT ${permissionFields} FROM permiso WHERE activo=true ${(req.user.rol.codigo === 'ASU') ? '' : 'AND reservado=false'} ORDER BY
-            CASE modulo WHEN 'usuarios' THEN 1 WHEN 'roles' THEN 2 WHEN 'permisos' THEN 3 WHEN 'empresa' THEN 4 WHEN 'bitacora' THEN 5 ELSE 6 END,
-            CASE accion WHEN 'gestionar' THEN 1 WHEN 'ver' THEN 2 WHEN 'crear' THEN 3 WHEN 'editar' THEN 4 WHEN 'deshabilitar' THEN 5 WHEN 'exportar' THEN 6 WHEN 'archivar' THEN 7 ELSE 8 END,
+            CASE modulo WHEN 'usuarios' THEN 1 WHEN 'roles' THEN 2 WHEN 'permisos' THEN 3 WHEN 'empresa' THEN 4 WHEN 'bitacora' THEN 5 WHEN 'productos' THEN 6 WHEN 'combustibles' THEN 7 WHEN 'categorias' THEN 8 WHEN 'grupos' THEN 9 WHEN 'modulos' THEN 10 ELSE 11 END,
+            CASE accion WHEN 'gestionar' THEN 1 WHEN 'ver' THEN 2 WHEN 'crear' THEN 3 WHEN 'editar' THEN 4 WHEN 'deshabilitar' THEN 5 WHEN 'eliminar' THEN 6 WHEN 'exportar' THEN 7 WHEN 'archivar' THEN 8 ELSE 9 END,
             nombre,id`);
     }
     async insert(capability: typeof CAPABILITIES[number], dto: PermissionDto, tx?: TransactionContext) { return database(this.db, tx).query('INSERT INTO permiso(codigo,nombre,descripcion,modulo,accion,reservado) VALUES($1,$2,$3,$4,$5,$6) RETURNING id', [capability.codigo, dto.nombre, dto.descripcion, dto.modulo, dto.accion, capability.reservado]); }

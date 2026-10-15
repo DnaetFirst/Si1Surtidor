@@ -73,6 +73,114 @@ export class CycleOne1700000000000 implements MigrationInterface {
         FOR EACH ROW EXECUTE FUNCTION proteger_bitacora();
     `);
   }
+
+  public async down(): Promise<void> {
+    throw new Error('La reversión destructiva requiere restaurar una copia de seguridad explícitamente.');
+  }
+}
+
+export class PasswordReset1700000000001 implements MigrationInterface {
+  public async up(runner: QueryRunner): Promise<void> {
+    await runner.query(`
+      CREATE TABLE password_reset_token (
+        token_hash varchar(64) PRIMARY KEY,
+        ci_usuario varchar(20) NOT NULL REFERENCES usuario(ci) ON DELETE CASCADE,
+        expires_at timestamptz NOT NULL,
+        used_at timestamptz,
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE INDEX password_reset_token_user_idx ON password_reset_token(ci_usuario);
+      CREATE INDEX password_reset_token_expiry_idx ON password_reset_token(expires_at);
+    `);
+  }
+  public async down(): Promise<void> {
+    throw new Error('La reversión destructiva requiere restaurar una copia de seguridad explícitamente.');
+  }
+}
+
+export class CycleTwo1700000000002 implements MigrationInterface {
+  public async up(runner: QueryRunner): Promise<void> {
+    await runner.query(`
+      -- CU8: Categorías
+      CREATE TABLE categoria (
+        id serial PRIMARY KEY,
+        nombre varchar(100) NOT NULL,
+        descripcion varchar(255) NOT NULL DEFAULT '',
+        imagen_url text NOT NULL DEFAULT '',
+        activo boolean NOT NULL DEFAULT true,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE UNIQUE INDEX categoria_nombre_unique ON categoria(lower(nombre));
+
+      -- CU8: Grupos
+      CREATE TABLE grupo (
+        id serial PRIMARY KEY,
+        nombre varchar(100) NOT NULL,
+        descripcion varchar(255) NOT NULL DEFAULT '',
+        activo boolean NOT NULL DEFAULT true,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE UNIQUE INDEX grupo_nombre_unique ON grupo(lower(nombre));
+
+      -- CU6: Combustible
+      CREATE TABLE combustible (
+        id serial PRIMARY KEY,
+        tipo varchar(50) NOT NULL,
+        octanaje integer NOT NULL,
+        nombre varchar(100) NOT NULL,
+        descripcion varchar(255) NOT NULL DEFAULT '',
+        esta_activo boolean NOT NULL DEFAULT true,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE UNIQUE INDEX combustible_nombre_unique ON combustible(lower(nombre));
+
+      -- CU5: Productos
+      CREATE TABLE producto (
+        id serial PRIMARY KEY,
+        nombre varchar(100) NOT NULL,
+        stock integer NOT NULL DEFAULT 0,
+        stock_minimo integer NOT NULL DEFAULT 0,
+        descripcion varchar(255) NOT NULL DEFAULT '',
+        precio_venta numeric(12,2) NOT NULL DEFAULT 0.00,
+        precio_compra numeric(12,2) NOT NULL DEFAULT 0.00,
+        iva numeric(5,2) NOT NULL DEFAULT 0.00,
+        url_image text NOT NULL DEFAULT '',
+        esta_activo boolean NOT NULL DEFAULT true,
+        descuento numeric(5,2) NOT NULL DEFAULT 0.00,
+        id_categoria integer NOT NULL REFERENCES categoria(id),
+        id_sucursal integer REFERENCES sucursal(id),
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE INDEX producto_categoria_idx ON producto(id_categoria);
+      CREATE INDEX producto_sucursal_idx ON producto(id_sucursal);
+      CREATE INDEX producto_nombre_idx ON producto(lower(nombre));
+
+      -- Relación N:M grupo_producto
+      CREATE TABLE grupo_producto (
+        id_grupo integer NOT NULL REFERENCES grupo(id) ON DELETE CASCADE,
+        id_producto integer NOT NULL REFERENCES producto(id) ON DELETE CASCADE,
+        PRIMARY KEY (id_grupo, id_producto)
+      );
+      CREATE INDEX grupo_producto_producto_idx ON grupo_producto(id_producto);
+
+      -- CU20: Módulos del Sistema
+      CREATE TABLE modulo_sistema (
+        id serial PRIMARY KEY,
+        codigo varchar(50) NOT NULL,
+        nombre varchar(100) NOT NULL,
+        descripcion varchar(255) NOT NULL DEFAULT '',
+        activo boolean NOT NULL DEFAULT true,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE UNIQUE INDEX modulo_sistema_codigo_unique ON modulo_sistema(lower(codigo));
+    `);
+  }
+
   public async down(): Promise<void> {
     throw new Error('La reversión destructiva requiere restaurar una copia de seguridad explícitamente.');
   }
