@@ -37,8 +37,8 @@ export class RolesService {
         return this.transactions.mutation(req, 'roles.editar', 'rol', async (tx) => {
             const existing = await this.repository.role(id, tx);
             const asuManagedByATI = existing.codigo === 'ASU' && req.user.rol.codigo === 'ATI';
-            if (existing.codigo === 'ASU' && !asuManagedByATI)
-                throw new ForbiddenException('Los permisos adicionales del ASU se administran mediante ATI.');
+            if (existing.codigo === 'ASU' && !asuManagedByATI && req.user.rol.codigo !== 'ASU')
+                throw new ForbiddenException('El rol Super Usuario está protegido.');
             if (!asuManagedByATI && (existing.permisos.some((permission: {
                 reservado: boolean;
             }) => permission.reservado)) && !(req.user.rol.codigo === 'ASU'))

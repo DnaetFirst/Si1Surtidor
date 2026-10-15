@@ -28,7 +28,7 @@ Para habilitar «¿Olvidaste tu contraseña?», configura `SMTP_HOST`, `SMTP_POR
 
 Los accesos iniciales son:
 
-- **ASU:** administración de permisos y consulta/exportación/archivo de bitácora.
+- **ASU:** acceso completo a todos los módulos mediante todos los permisos activos, incluidos los permisos nuevos. Conserva su rol de superusuario y puede realizar las funciones de los demás roles.
 - **ATI:** usuarios, roles y empresa.
 - **Gerente General:** empresa; ATI puede crear su cuenta.
 - **Gerente de Sucursal y Empleado:** inicio de sesión, sin operaciones de futuros ciclos habilitadas.

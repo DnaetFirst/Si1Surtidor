@@ -14,7 +14,8 @@ export class PostgresSessionRepository extends SessionRepository {
         rolId: number;
     }, tx?: TransactionContext) {
         return database(this.db, tx).query(`SELECT p.codigo,p.reservado FROM permiso p
-      JOIN permiso_rol pr ON pr.id_permiso=p.id WHERE pr.id_rol=$1 AND p.activo`, [row.rolId]);
+      WHERE p.activo AND (EXISTS(SELECT 1 FROM rol r WHERE r.id=$1 AND r.codigo='ASU' AND r.activo)
+      OR EXISTS(SELECT 1 FROM permiso_rol pr WHERE pr.id_permiso=p.id AND pr.id_rol=$1))`, [row.rolId]);
     }
     async lockUser(identity: string, tx?: TransactionContext) { return database(this.db, tx).query('SELECT * FROM usuario WHERE lower(correo)=$1 FOR UPDATE', [identity]); }
     async failedAttempt(row: {

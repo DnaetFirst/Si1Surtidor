@@ -10,7 +10,7 @@ import { RoleDto, UpdateRoleDto } from '../domain/commands';
 import { RolesRepository } from '../domain/repository';
 const roleFields = `r.id,r.codigo,r.nombre,r.activo,r.created_at AS "createdAt",
   (SELECT count(*)::int FROM usuario u WHERE u.id_rol=r.id AND u.activo=true) AS "usuariosCount",
-  COALESCE((SELECT json_agg(json_build_object('id',p.id,'codigo',p.codigo,'nombre',p.nombre,'descripcion',p.descripcion,'modulo',p.modulo,'accion',p.accion,'reservado',p.reservado,'activo',p.activo) ORDER BY p.modulo,p.accion) FROM permiso p JOIN permiso_rol pr ON pr.id_permiso=p.id WHERE pr.id_rol=r.id),'[]'::json) AS permisos`;
+  COALESCE((SELECT json_agg(json_build_object('id',p.id,'codigo',p.codigo,'nombre',p.nombre,'descripcion',p.descripcion,'modulo',p.modulo,'accion',p.accion,'reservado',p.reservado,'activo',p.activo) ORDER BY p.modulo,p.accion) FROM permiso p WHERE (r.codigo='ASU' AND p.activo) OR (r.codigo<>'ASU' AND EXISTS(SELECT 1 FROM permiso_rol pr WHERE pr.id_permiso=p.id AND pr.id_rol=r.id))),'[]'::json) AS permisos`;
 @Injectable()
 export class PostgresRolesRepository extends RolesRepository {
     constructor(private readonly db: DataSource) { super(); }

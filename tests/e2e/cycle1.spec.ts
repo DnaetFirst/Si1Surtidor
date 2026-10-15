@@ -138,15 +138,13 @@ test('La navegación muestra solo módulos del ciclo 1 y respeta el actor', asyn
     try {
       await page.goto(actor === 'ATI' ? '/usuarios' : '/usuarios/permisos');
       const navigation = page.getByRole('complementary', { name: 'Navegación principal' });
-      await expect(navigation.getByRole('link', { name: actor === 'ATI' ? 'Permisos' : 'Usuarios', exact: true })).toHaveCount(0);
-      const futureItems = actor === 'ASU'
-        ? ['Dashboard', 'Sucursales', 'Inventario', 'Productos', 'Combustible', 'Categorías y Grupos', 'Ventas', 'Notas de venta', 'Descuentos', 'Compras', 'Proveedores', 'Órdenes de compra', 'Notas de compra', 'Notificaciones', 'Reportes', 'Configuración', 'Próximamente']
-        : ['Dashboard', 'Sucursales', 'Ventas', 'Notas de venta', 'Descuentos', 'Compras', 'Proveedores', 'Órdenes de compra', 'Notas de compra', 'Notificaciones', 'Reportes', 'Configuración', 'Próximamente'];
+      await expect(navigation.getByRole('link', { name: actor === 'ATI' ? 'Permisos' : 'Usuarios', exact: true })).toHaveCount(actor === 'ATI' ? 0 : 1);
+      const futureItems = ['Dashboard', 'Sucursales', 'Ventas', 'Notas de venta', 'Descuentos', 'Compras', 'Proveedores', 'Órdenes de compra', 'Notas de compra', 'Notificaciones', 'Reportes', 'Configuración', 'Próximamente'];
       for (const item of futureItems) {
         await expect(navigation.getByText(item, { exact: true })).toHaveCount(0);
       }
       await page.goto(actor === 'ATI' ? '/empresa/bitacora' : '/usuarios');
-      await expect(page.getByRole('heading', { name: 'Acceso restringido', exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { name: actor === 'ATI' ? 'Acceso restringido' : 'Usuarios', exact: true })).toBeVisible();
     } finally { await context.close(); }
   }
 });
@@ -402,26 +400,20 @@ test('Bitácora: filtros, CSV, archivo y consulta de archivados en móvil', asyn
 });
 
 
-test('ATI administra adicionales del ASU y conserva esenciales en móvil', async ({ browser }) => {
+test('ATI consulta todos los permisos protegidos del ASU en móvil', async ({ browser }) => {
   const { context, page } = await openPage(browser, 'ATI', 390);
-  await page.goto('/usuarios/roles');
-  await page.getByRole('button', { name: 'Acciones de Administrador Super Usuario', exact: true }).click();
-  await page.getByRole('link', { name: 'Editar rol', exact: true }).click();
-  await expect(page.getByLabel('Nombre', { exact: true })).toBeDisabled();
-  for (const name of ['Gestionar permisos', 'Consultar bitácora', 'Exportar bitácora', 'Archivar bitácora']) {
-    const control = page.getByRole('switch', { name: 'Permiso ' + name, exact: true });
-    await expect(control).toBeChecked(); await expect(control).toBeDisabled();
-  }
-  const company = page.getByRole('switch', { name: 'Permiso Gestionar empresa', exact: true });
-  await company.check(); await page.getByRole('button', { name: 'Guardar Rol', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Roles', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Acciones de Administrador Super Usuario', exact: true }).click();
-  await page.getByRole('link', { name: 'Editar rol', exact: true }).click();
-  await expect(company).toBeChecked(); await company.uncheck();
-  await noHorizontalOverflow(page);
-  await page.getByRole('button', { name: 'Guardar Rol', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Roles', exact: true })).toBeVisible();
-  await context.close();
+  try {
+    await page.goto('/usuarios/roles');
+    await page.getByRole('button', { name: 'Acciones de Administrador Super Usuario', exact: true }).click();
+    await page.getByRole('link', { name: 'Ver permisos', exact: true }).click();
+    await expect(page.getByLabel('Nombre', { exact: true })).toBeDisabled();
+    for (const name of ['Gestionar permisos', 'Gestionar usuarios', 'Gestionar roles', 'Gestionar empresa', 'Gestionar productos', 'Gestionar módulos']) {
+      const control = page.getByRole('switch', { name: 'Permiso ' + name, exact: true });
+      await expect(control).toBeChecked(); await expect(control).toBeDisabled();
+    }
+    await expect(page.getByRole('button', { name: 'Guardar Rol', exact: true })).toHaveCount(0);
+    await noHorizontalOverflow(page);
+  } finally { await context.close(); }
 });
 
 test('ASU edita su perfil desde Mi cuenta en móvil', async ({ browser }) => {

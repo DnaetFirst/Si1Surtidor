@@ -4,11 +4,11 @@ import { assertAccountEditable,assertAdministrativeContinuity,assertImmutableCI,
 import { DomainError } from '../shared/domain/errors';
 import { assertProtectedPermissions, protectedPermissionIds } from '../modules/security/roles/domain/protected-permissions';
 
-test('ASU conserva permisos esenciales pero puede agregar y quitar adicionales', () => {
+test('ASU conserva todos los permisos activos', () => {
   const role = { codigo: 'ASU', permisos: [{ id: 1, codigo: 'permisos.gestionar' }, { id: 2, codigo: 'empresa.gestionar' }] };
-  assert.deepEqual(protectedPermissionIds(role), [1]);
+  assert.deepEqual(protectedPermissionIds(role), [1, 2]);
   assert.throws(() => assertProtectedPermissions(role, [2]), (e: unknown) => e instanceof DomainError && e.statusCode === 409);
-  assert.doesNotThrow(() => assertProtectedPermissions(role, [1]));
+  assert.throws(() => assertProtectedPermissions(role, [1]), (e: unknown) => e instanceof DomainError && e.statusCode === 409);
   assert.doesNotThrow(() => assertProtectedPermissions(role, [1, 2, 3]));
   assert.doesNotThrow(() => assertProtectedPermissions({ ...role, codigo: 'CUSTOM' }, []));
 });

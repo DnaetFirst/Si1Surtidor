@@ -15,6 +15,8 @@ export class PostgresMutationAuthorization extends MutationAuthorization {
         return current;
     }
     permissions(roleId: number, tx: TransactionContext) {
-        return database(this.db, tx).query('SELECT p.codigo,p.reservado FROM permiso p JOIN permiso_rol pr ON pr.id_permiso=p.id WHERE pr.id_rol=$1 AND p.activo=true', [roleId]);
+        return database(this.db, tx).query(`SELECT p.codigo,p.reservado FROM permiso p WHERE p.activo=true
+          AND (EXISTS(SELECT 1 FROM rol r WHERE r.id=$1 AND r.codigo='ASU' AND r.activo)
+          OR EXISTS(SELECT 1 FROM permiso_rol pr WHERE pr.id_permiso=p.id AND pr.id_rol=$1))`, [roleId]);
     }
 }
