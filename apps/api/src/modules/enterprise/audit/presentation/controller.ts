@@ -14,7 +14,7 @@ export class AuditController {
     @RequirePermissions('bitacora.exportar')
     @ApiProduces('text/csv')
     @ApiOperation({ summary: 'Exporta todos los registros filtrados, sin límite de paginación.' })
-    async export(
+    async exportar(
     @Query()
     query: AuditQuery,
     @Req()
@@ -28,16 +28,25 @@ export class AuditController {
     }
     @Get()
     @RequirePermissions('bitacora.ver')
-    list(
+    obtener(
     @Query()
     query: AuditQuery) { return this.service.auditRecords(query); }
     @Post('archivar')
     @HttpCode(200)
     @RequirePermissions('bitacora.archivar')
     @ApiOperation({ summary: 'Archiva eventos por rango inclusivo; conserva su contenido para consulta.' })
-    archive(
+    archivar(
     @Body()
     dto: ArchiveDto,
     @Req()
     req: AuthRequest) { return this.service.archive(dto, req); }
+
+    // Alias para retrocompatibilidad
+    async export(query: AuditQuery, req: AuthRequest, res: Response) { return this.exportar(query, req, res); }
+    list(query: AuditQuery) { return this.obtener(query); }
+    archive(dto: ArchiveDto, req: AuthRequest) { return this.archivar(dto, req); }
 }
+
+// Alias en español para el análisis y defensa de arquitectura
+export { AuditController as ControladorBitacora };
+

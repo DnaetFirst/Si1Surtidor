@@ -17,24 +17,24 @@ export class UsersController {
     @Get()
     @RequirePermissions('usuarios.gestionar', 'usuarios.ver')
     @ApiOperation({ summary: 'Lista paginada de usuarios; nunca devuelve contraseñas ni sesiones.' })
-    list(
+    obtener(
     @Query()
     query: ListQuery) { return this.service.users(query); }
     @Get(':ci')
     @RequirePermissions('usuarios.gestionar', 'usuarios.ver', 'usuarios.editar')
-    detail(
+    obtenerPorCi(
     @Param('ci')
     ci: string) { return this.service.user(ci); }
     @Post()
     @RequirePermissions('usuarios.gestionar', 'usuarios.crear')
-    create(
+    crear(
     @Body()
     dto: CreateUserDto,
     @Req()
     req: AuthRequest) { return this.service.createUser(dto, req); }
     @Patch(':ci')
     @RequirePermissions('usuarios.gestionar', 'usuarios.editar')
-    update(
+    modificar(
     @Param('ci')
     ci: string,
     @Body()
@@ -45,9 +45,20 @@ export class UsersController {
     @HttpCode(200)
     @RequirePermissions('usuarios.gestionar', 'usuarios.deshabilitar')
     @ApiOperation({ summary: 'Deshabilita el usuario y revoca sus sesiones. Protege ASU y último ATI.' })
-    disable(
+    deshabilitar(
     @Param('ci')
     ci: string,
     @Req()
     req: AuthRequest) { return this.service.disableUser(ci, req); }
+
+    // Alias para retrocompatibilidad
+    list(query: ListQuery) { return this.obtener(query); }
+    detail(ci: string) { return this.obtenerPorCi(ci); }
+    create(dto: CreateUserDto, req: AuthRequest) { return this.crear(dto, req); }
+    update(ci: string, dto: UpdateUserDto, req: AuthRequest) { return this.modificar(ci, dto, req); }
+    disable(ci: string, req: AuthRequest) { return this.deshabilitar(ci, req); }
 }
+
+// Alias en español para el análisis y defensa de arquitectura
+export { UsersController as ControladorUsuario };
+

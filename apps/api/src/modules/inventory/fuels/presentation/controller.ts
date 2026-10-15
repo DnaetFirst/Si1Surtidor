@@ -13,35 +13,46 @@ export class FuelController {
 
   @Get()
   @RequirePermissions('combustibles.gestionar')
-  async list() {
-    return this.service.list();
+  async obtener() {
+    return this.service.obtener();
   }
 
   @Get(':id')
   @RequirePermissions('combustibles.gestionar')
-  async detail(@Param('id', ParseIntPipe) id: number) {
-    return this.service.get(id);
+  async obtenerPorId(@Param('id', ParseIntPipe) id: number) {
+    return this.service.obtenerPorId(id);
   }
 
   @Post()
   @RequirePermissions('combustibles.gestionar')
-  async create(@Body() dto: CreateFuelDto, @Req() req: AuthRequest) {
-    return this.service.create(dto, req);
+  async crear(@Body() dto: CreateFuelDto, @Req() req: AuthRequest) {
+    return this.service.crear(dto, req);
   }
 
   @Patch(':id')
   @RequirePermissions('combustibles.gestionar')
-  async update(
+  async modificar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateFuelDto,
     @Req() req: AuthRequest
   ) {
-    return this.service.update(id, dto, req);
+    return this.service.modificar(id, dto, req);
   }
 
   @Delete(':id')
   @RequirePermissions('combustibles.gestionar')
-  async remove(@Param('id', ParseIntPipe) id: number, @Req() req: AuthRequest) {
-    return this.service.delete(id, req);
+  async eliminar(@Param('id', ParseIntPipe) id: number, @Req() req: AuthRequest) {
+    return this.service.eliminar(id, req);
   }
+
+  // Alias para retrocompatibilidad
+  async list() { return this.obtener(); }
+  async detail(id: number) { return this.obtenerPorId(id); }
+  async create(dto: CreateFuelDto, req: AuthRequest) { return this.crear(dto, req); }
+  async update(id: number, dto: UpdateFuelDto, req: AuthRequest) { return this.modificar(id, dto, req); }
+  async remove(id: number, req: AuthRequest) { return this.eliminar(id, req); }
 }
+
+// Alias en español para el análisis y defensa de arquitectura
+export { FuelController as ControladorCombustible };
+

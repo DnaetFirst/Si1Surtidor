@@ -11,17 +11,26 @@ export class ProductService {
     private readonly transactions: AdministrativeTransaction
   ) {}
 
-  async list(tx?: TransactionContext) {
+  async obtener(tx?: TransactionContext) {
     return this.repository.list(tx);
   }
 
-  async get(id: number, tx?: TransactionContext) {
+  async obtenerPorId(id: number, tx?: TransactionContext) {
     const item = await this.repository.findById(id, tx);
     if (!item) throw new NotFoundException('Producto no encontrado.');
     return item;
   }
 
-  async create(dto: CreateProductCommand, req: AuthRequest) {
+  async list(tx?: TransactionContext) {
+    return this.obtener(tx);
+  }
+
+  async get(id: number, tx?: TransactionContext) {
+    return this.obtenerPorId(id, tx);
+  }
+
+  async crear(dto: CreateProductCommand, req: AuthRequest) {
+
     return this.transactions.mutation(req, 'productos.crear', 'producto', async tx => {
       const existing = await this.repository.findByName(dto.nombre.trim(), tx);
       if (existing) {
@@ -58,7 +67,11 @@ export class ProductService {
     });
   }
 
-  async update(id: number, dto: UpdateProductCommand, req: AuthRequest) {
+  async create(dto: CreateProductCommand, req: AuthRequest) {
+    return this.crear(dto, req);
+  }
+
+  async modificar(id: number, dto: UpdateProductCommand, req: AuthRequest) {
     return this.transactions.mutation(req, 'productos.editar', 'producto', async tx => {
       const current = await this.repository.findById(id, tx);
       if (!current) throw new NotFoundException('Producto no encontrado.');
@@ -102,7 +115,11 @@ export class ProductService {
     });
   }
 
-  async delete(id: number, req: AuthRequest) {
+  async update(id: number, dto: UpdateProductCommand, req: AuthRequest) {
+    return this.modificar(id, dto, req);
+  }
+
+  async eliminar(id: number, req: AuthRequest) {
     return this.transactions.mutation(req, 'productos.eliminar', 'producto', async tx => {
       const current = await this.repository.findById(id, tx);
       if (!current) throw new NotFoundException('Producto no encontrado.');
@@ -111,4 +128,12 @@ export class ProductService {
       return { id, deleted: true };
     });
   }
+
+  async delete(id: number, req: AuthRequest) {
+    return this.eliminar(id, req);
+  }
 }
+
+// Alias en español para el análisis y defensa de arquitectura
+export { ProductService as ServicioProducto };
+

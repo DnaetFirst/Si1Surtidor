@@ -10,5 +10,12 @@ export class BranchesController {
     @Get()
     @RequirePermissions('usuarios.gestionar', 'usuarios.ver', 'usuarios.crear', 'usuarios.editar')
     @ApiOperation({ summary: 'Sucursales existentes para asignación opcional; sin administración en ciclo 1.' })
-    list() { return this.service.branches(); }
+    obtener() { return this.service.branches(); }
+
+    // Alias para retrocompatibilidad
+    list() { return this.obtener(); }
 }
+
+// Alias en español para el análisis y defensa de arquitectura
+export { BranchesController as ControladorSucursal };
+

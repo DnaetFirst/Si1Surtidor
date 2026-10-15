@@ -12,21 +12,30 @@ export class CompanyController {
     constructor(private readonly service: CompanyService) { }
     @Get()
     @RequirePermissions('empresa.gestionar', 'empresa.ver', 'empresa.editar')
-    async detail(
+    async obtener(
     @Res()
     response: Response) { response.json(await this.service.company()); }
     @Post()
     @RequirePermissions('empresa.gestionar', 'empresa.crear')
-    create(
+    crear(
     @Body()
     dto: CompanyDto,
     @Req()
     req: AuthRequest) { return this.service.createCompany(dto, req); }
     @Patch()
     @RequirePermissions('empresa.gestionar', 'empresa.editar')
-    update(
+    modificar(
     @Body()
     dto: UpdateCompanyDto,
     @Req()
     req: AuthRequest) { return this.service.updateCompany(dto, req); }
+
+    // Alias para retrocompatibilidad
+    async detail(response: Response) { return this.obtener(response); }
+    create(dto: CompanyDto, req: AuthRequest) { return this.crear(dto, req); }
+    update(dto: UpdateCompanyDto, req: AuthRequest) { return this.modificar(dto, req); }
 }
+
+// Alias en español para el análisis y defensa de arquitectura
+export { CompanyController as ControladorEmpresa };
+

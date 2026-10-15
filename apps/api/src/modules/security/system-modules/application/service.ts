@@ -11,17 +11,25 @@ export class SystemModuleService {
     private readonly transactions: AdministrativeTransaction
   ) {}
 
-  async list(tx?: TransactionContext) {
+  async obtener(tx?: TransactionContext) {
     return this.repository.list(tx);
   }
 
-  async get(id: number, tx?: TransactionContext) {
+  async obtenerPorId(id: number, tx?: TransactionContext) {
     const item = await this.repository.findById(id, tx);
     if (!item) throw new NotFoundException('Módulo del sistema no encontrado.');
     return item;
   }
 
-  async create(dto: CreateSystemModuleCommand, req: AuthRequest) {
+  async list(tx?: TransactionContext) {
+    return this.obtener(tx);
+  }
+
+  async get(id: number, tx?: TransactionContext) {
+    return this.obtenerPorId(id, tx);
+  }
+
+  async crear(dto: CreateSystemModuleCommand, req: AuthRequest) {
     return this.transactions.mutation(req, 'modulos.crear', 'modulo_sistema', async tx => {
       const existing = await this.repository.findByCode(dto.codigo.trim(), tx);
       if (existing) {
@@ -36,7 +44,11 @@ export class SystemModuleService {
     });
   }
 
-  async update(id: number, dto: UpdateSystemModuleCommand, req: AuthRequest) {
+  async create(dto: CreateSystemModuleCommand, req: AuthRequest) {
+    return this.crear(dto, req);
+  }
+
+  async modificar(id: number, dto: UpdateSystemModuleCommand, req: AuthRequest) {
     return this.transactions.mutation(req, 'modulos.editar', 'modulo_sistema', async tx => {
       const current = await this.repository.findById(id, tx);
       if (!current) throw new NotFoundException('Módulo del sistema no encontrado.');
@@ -57,7 +69,11 @@ export class SystemModuleService {
     });
   }
 
-  async delete(id: number, req: AuthRequest) {
+  async update(id: number, dto: UpdateSystemModuleCommand, req: AuthRequest) {
+    return this.modificar(id, dto, req);
+  }
+
+  async eliminar(id: number, req: AuthRequest) {
     return this.transactions.mutation(req, 'modulos.eliminar', 'modulo_sistema', async tx => {
       const current = await this.repository.findById(id, tx);
       if (!current) throw new NotFoundException('Módulo del sistema no encontrado.');
@@ -66,4 +82,12 @@ export class SystemModuleService {
       return { id, deleted: true };
     });
   }
+
+  async delete(id: number, req: AuthRequest) {
+    return this.eliminar(id, req);
+  }
 }
+
+// Alias en español para el análisis y defensa de arquitectura
+export { SystemModuleService as ServicioModuloSistema };
+

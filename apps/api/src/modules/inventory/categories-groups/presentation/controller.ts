@@ -13,37 +13,44 @@ export class CategoryController {
 
   @Get()
   @RequirePermissions('categorias.gestionar')
-  async list() {
-    return this.service.listCategories();
+  async obtener() {
+    return this.service.obtenerCategorias();
   }
 
   @Get(':id')
   @RequirePermissions('categorias.gestionar')
-  async detail(@Param('id', ParseIntPipe) id: number) {
-    return this.service.getCategory(id);
+  async obtenerPorId(@Param('id', ParseIntPipe) id: number) {
+    return this.service.obtenerCategoriaPorId(id);
   }
 
   @Post()
   @RequirePermissions('categorias.gestionar')
-  async create(@Body() dto: CreateCategoryDto, @Req() req: AuthRequest) {
-    return this.service.createCategory(dto, req);
+  async crear(@Body() dto: CreateCategoryDto, @Req() req: AuthRequest) {
+    return this.service.crearCategoria(dto, req);
   }
 
   @Patch(':id')
   @RequirePermissions('categorias.gestionar')
-  async update(
+  async modificar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateCategoryDto,
     @Req() req: AuthRequest
   ) {
-    return this.service.updateCategory(id, dto, req);
+    return this.service.modificarCategoria(id, dto, req);
   }
 
   @Delete(':id')
   @RequirePermissions('categorias.gestionar')
-  async remove(@Param('id', ParseIntPipe) id: number, @Req() req: AuthRequest) {
-    return this.service.deleteCategory(id, req);
+  async eliminar(@Param('id', ParseIntPipe) id: number, @Req() req: AuthRequest) {
+    return this.service.eliminarCategoria(id, req);
   }
+
+  // Alias para retrocompatibilidad
+  async list() { return this.obtener(); }
+  async detail(id: number) { return this.obtenerPorId(id); }
+  async create(dto: CreateCategoryDto, req: AuthRequest) { return this.crear(dto, req); }
+  async update(id: number, dto: UpdateCategoryDto, req: AuthRequest) { return this.modificar(id, dto, req); }
+  async remove(id: number, req: AuthRequest) { return this.eliminar(id, req); }
 }
 
 @ApiTags('Grupos')
@@ -54,35 +61,46 @@ export class GroupController {
 
   @Get()
   @RequirePermissions('grupos.gestionar')
-  async list() {
-    return this.service.listGroups();
+  async obtener() {
+    return this.service.obtenerGrupos();
   }
 
   @Get(':id')
   @RequirePermissions('grupos.gestionar')
-  async detail(@Param('id', ParseIntPipe) id: number) {
-    return this.service.getGroup(id);
+  async obtenerPorId(@Param('id', ParseIntPipe) id: number) {
+    return this.service.obtenerGrupoPorId(id);
   }
 
   @Post()
   @RequirePermissions('grupos.gestionar')
-  async create(@Body() dto: CreateGroupDto, @Req() req: AuthRequest) {
-    return this.service.createGroup(dto, req);
+  async crear(@Body() dto: CreateGroupDto, @Req() req: AuthRequest) {
+    return this.service.crearGrupo(dto, req);
   }
 
   @Patch(':id')
   @RequirePermissions('grupos.gestionar')
-  async update(
+  async modificar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateGroupDto,
     @Req() req: AuthRequest
   ) {
-    return this.service.updateGroup(id, dto, req);
+    return this.service.modificarGrupo(id, dto, req);
   }
 
   @Delete(':id')
   @RequirePermissions('grupos.gestionar')
-  async remove(@Param('id', ParseIntPipe) id: number, @Req() req: AuthRequest) {
-    return this.service.deleteGroup(id, req);
+  async eliminar(@Param('id', ParseIntPipe) id: number, @Req() req: AuthRequest) {
+    return this.service.eliminarGrupo(id, req);
   }
+
+  // Alias para retrocompatibilidad
+  async list() { return this.obtener(); }
+  async detail(id: number) { return this.obtenerPorId(id); }
+  async create(dto: CreateGroupDto, req: AuthRequest) { return this.crear(dto, req); }
+  async update(id: number, dto: UpdateGroupDto, req: AuthRequest) { return this.modificar(id, dto, req); }
+  async remove(id: number, req: AuthRequest) { return this.eliminar(id, req); }
 }
+
+// Alias en español para el análisis y defensa de arquitectura
+export { CategoryController as ControladorCategoria, GroupController as ControladorGrupo };
+

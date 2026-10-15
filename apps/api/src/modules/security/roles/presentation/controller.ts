@@ -18,24 +18,24 @@ export class RolesController {
     req: AuthRequest) { return this.service.roleOptions(req); }
     @Get()
     @RequirePermissions('roles.gestionar', 'roles.ver')
-    list(
+    obtener(
     @Query()
     query: ListQuery) { return this.service.roles(query); }
     @Get(':id')
     @RequirePermissions('roles.gestionar', 'roles.ver', 'roles.editar')
-    detail(
+    obtenerPorId(
     @Param('id', ParseIntPipe)
     id: number) { return this.service.role(id); }
     @Post()
     @RequirePermissions('roles.gestionar', 'roles.crear')
-    create(
+    crear(
     @Body()
     dto: RoleDto,
     @Req()
     req: AuthRequest) { return this.service.createRole(dto, req); }
     @Patch(':id')
     @RequirePermissions('roles.gestionar', 'roles.editar')
-    update(
+    modificar(
     @Param('id', ParseIntPipe)
     id: number,
     @Body()
@@ -45,9 +45,20 @@ export class RolesController {
     @Post(':id/deshabilitar')
     @HttpCode(200)
     @RequirePermissions('roles.gestionar', 'roles.deshabilitar')
-    disable(
+    deshabilitar(
     @Param('id', ParseIntPipe)
     id: number,
     @Req()
     req: AuthRequest) { return this.service.disableRole(id, req); }
+
+    // Alias para retrocompatibilidad
+    list(query: ListQuery) { return this.obtener(query); }
+    detail(id: number) { return this.obtenerPorId(id); }
+    create(dto: RoleDto, req: AuthRequest) { return this.crear(dto, req); }
+    update(id: number, dto: UpdateRoleDto, req: AuthRequest) { return this.modificar(id, dto, req); }
+    disable(id: number, req: AuthRequest) { return this.deshabilitar(id, req); }
 }
+
+// Alias en español para el análisis y defensa de arquitectura
+export { RolesController as ControladorRol };
+
