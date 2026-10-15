@@ -33,7 +33,7 @@ Los accesos iniciales son:
 - **Gerente General:** empresa; ATI puede crear su cuenta.
 - **Gerente de Sucursal y Empleado:** inicio de sesión, sin operaciones de futuros ciclos habilitadas.
 
-La primera instalación no contiene datos comerciales ficticios. Registre la empresa con ATI; los usuarios pueden crearse sin sucursal. La administración de sucursales pertenece al ciclo siguiente y no se incluye.
+Registre la empresa con ATI antes de crear sucursales. Los usuarios pueden crearse sin sucursal. CU15 permite registrar, buscar, consultar, modificar y deshabilitar sucursales desde **Empresa → Sucursales**, con acceso para ATI, Gerente General, Gerente de Sucursal y ASU. Una sucursal deshabilitada conserva sus usuarios y productos, pero no admite nuevas asignaciones. El seed del ciclo 2 incluye categorías, grupos, combustibles y productos de demostración.
 
 ## Verificación
 
@@ -92,4 +92,4 @@ Los cinco roles iniciales corresponden a los actores documentados. ATI puede cre
 
 ## Límites de esta entrega
 
-Inventario, compras, ventas, reportes, módulos y CRUD de sucursales quedan fuera del ciclo 1. Las referencias futuras visibles están deshabilitadas. El PDF no aporta fuentes de diseño ni tipografía original; se emplea Ubuntu local y una reconstrucción de los elementos visuales, conservando la composición acordada. No se ha publicado en Railway.
+Se incluyen CU5, CU6, CU8, CU15 y CU20 además del ciclo 1. Compras, ventas y reportes continúan pendientes. Se emplea Ubuntu local y la composición visual del proyecto. La demostración está publicada en Render con PostgreSQL en Neon; no en Railway.

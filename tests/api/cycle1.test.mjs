@@ -172,6 +172,7 @@ test('Ciclo 1: integración HTTP con PostgreSQL', { timeout: 120_000 }, async t 
 
   await t.test('Empresa única y permisos de Gerente General, GS y Empleado', async () => {
     assert.equal(expected(await ati.request('GET', '/empresa'), 200), null, 'Empresa sin registrar se representa con JSON null');
+    expected(await ati.request('POST', '/sucursales', { nombre: 'Sin empresa', direccion: 'Calle 123', telefono: '70000001', correo: 'sucursal@example.test' }), 409);
     const current = expected(await ati.request('GET', '/empresa'), 200);
     const data = { nombre: `Empresa prueba ${suffix}`, telefono: '70000001', direccion: 'Avenida pruebas 123', nombrePropietario: 'Propietario prueba', fechaCreacion: '2024-05-11', correo: 'empresa@example.test', nit: `90${suffix}`, logoUrl: '' };
     accepted(await ati.request(current ? 'PATCH' : 'POST', '/empresa', data), [200, 201]);
@@ -183,7 +184,8 @@ test('Ciclo 1: integración HTTP con PostgreSQL', { timeout: 120_000 }, async t 
       const result = identity(accepted(await client.login(actor.correo, password), [200, 201]));
       expected(await client.request('GET', '/empresa'), code === 'GG' ? 200 : 403);
       expected(await client.request('GET', '/bitacora'), 403);
-      if (code !== 'GG') assert.equal(result.permisos.length, 0);
+      if (code === 'E') assert.equal(result.permisos.length, 0);
+      if (code === 'GS' || code === 'GG') assert.ok(result.permisos.includes('sucursales.gestionar'));
     }
   });
 

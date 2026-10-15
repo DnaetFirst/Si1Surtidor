@@ -12,6 +12,8 @@ const pages: { name: string; route: string; actor?: Actor; heading: string }[] =
   { name: 'crear-rol', route: '/usuarios/roles/crear', actor: 'ATI', heading: 'Crear Rol' },
   { name: 'permisos', route: '/usuarios/permisos', actor: 'ASU', heading: 'Permisos' },
   { name: 'empresa', route: '/empresa', actor: 'ATI', heading: 'Detalles de la Empresa' },
+  { name: 'sucursales', route: '/empresa/sucursales', actor: 'ATI', heading: 'Sucursales' },
+  { name: 'crear-sucursal', route: '/empresa/sucursales/crear', actor: 'ASU', heading: 'Crear sucursal' },
   { name: 'bitacora', route: '/empresa/bitacora', actor: 'ASU', heading: 'Bitácora' },
 ];
 
@@ -139,7 +141,7 @@ test('La navegación muestra solo módulos del ciclo 1 y respeta el actor', asyn
       await page.goto(actor === 'ATI' ? '/usuarios' : '/usuarios/permisos');
       const navigation = page.getByRole('complementary', { name: 'Navegación principal' });
       await expect(navigation.getByRole('link', { name: actor === 'ATI' ? 'Permisos' : 'Usuarios', exact: true })).toHaveCount(actor === 'ATI' ? 0 : 1);
-      const futureItems = ['Dashboard', 'Sucursales', 'Ventas', 'Notas de venta', 'Descuentos', 'Compras', 'Proveedores', 'Órdenes de compra', 'Notas de compra', 'Notificaciones', 'Reportes', 'Configuración', 'Próximamente'];
+      const futureItems = ['Dashboard', 'Ventas', 'Notas de venta', 'Descuentos', 'Compras', 'Proveedores', 'Órdenes de compra', 'Notas de compra', 'Notificaciones', 'Reportes', 'Configuración', 'Próximamente'];
       for (const item of futureItems) {
         await expect(navigation.getByText(item, { exact: true })).toHaveCount(0);
       }
@@ -446,3 +448,48 @@ test('ATI no puede editar el usuario ASU ni su contraseña', async ({ browser })
     await noHorizontalOverflow(page);
   } finally { await context.close(); }
 });
+
+for (const actor of ['ATI', 'ASU'] as const) {
+  test('CU15: registro, edición, detalle y baja en móvil con ' + actor, async ({ browser }, testInfo) => {
+    const { context, page } = await openPage(browser, actor, 390);
+    const name = 'Sucursal web ' + actor + ' ' + Date.now();
+    try {
+      await page.goto('/empresa/sucursales');
+      await page.getByRole('link', { name: 'Agregar Sucursal', exact: true }).click();
+      await page.getByLabel('Nombre', { exact: true }).fill(name);
+      await page.getByLabel('Dirección', { exact: true }).fill('Avenida central 123');
+      await page.getByLabel('Teléfono', { exact: true }).fill('70000001');
+      await page.getByLabel('Correo electrónico', { exact: true }).fill('sucursal@example.test');
+      await page.getByRole('button', { name: 'Guardar sucursal', exact: true }).click();
+      await expect(page.getByRole('heading', { name: 'Sucursales', exact: true })).toBeVisible();
+      await page.getByLabel('Buscar sucursales…', { exact: true }).fill(name);
+      await page.getByRole('button', { name: 'Acciones de ' + name, exact: true }).click();
+      await page.getByRole('link', { name: 'Editar sucursal', exact: true }).click();
+      await expect(page.getByLabel('Nombre', { exact: true })).toHaveValue(name);
+      await page.getByLabel('Dirección', { exact: true }).fill('Dirección modificada 456');
+      await page.screenshot({ path: testInfo.outputPath('cu15-editar-' + actor + '.png'), fullPage: true });
+      await noHorizontalOverflow(page);
+      await page.getByRole('button', { name: 'Guardar sucursal', exact: true }).click();
+      await page.getByLabel('Buscar sucursales…', { exact: true }).fill(name);
+      await page.getByRole('button', { name: 'Acciones de ' + name, exact: true }).click();
+      await page.getByRole('link', { name: 'Ver sucursal', exact: true }).click();
+      await expect(page.getByLabel('Dirección', { exact: true })).toHaveValue('Dirección modificada 456');
+      await expect(page.getByLabel('Nombre', { exact: true })).toBeDisabled();
+      await expect(page.getByRole('button', { name: 'Guardar sucursal', exact: true })).toHaveCount(0);
+      await page.getByRole('link', { name: 'Volver', exact: true }).click();
+      await page.getByLabel('Buscar sucursales…', { exact: true }).fill(name);
+      await page.getByRole('button', { name: 'Acciones de ' + name, exact: true }).click();
+      await page.getByRole('button', { name: 'Deshabilitar', exact: true }).click();
+      await expect(page.getByRole('dialog', { name: 'Deshabilitar sucursal' })).toBeVisible();
+      await page.getByRole('button', { name: 'Cancelar', exact: true }).click();
+      await page.getByRole('button', { name: 'Acciones de ' + name, exact: true }).click();
+      await page.getByRole('button', { name: 'Deshabilitar', exact: true }).click();
+      await page.getByRole('dialog').getByRole('button', { name: 'Deshabilitar', exact: true }).click();
+      await expect(page.getByRole('dialog')).toHaveCount(0);
+      await page.getByLabel('Estado', { exact: true }).selectOption('false');
+      await expect(page.getByRole('row').filter({ hasText: name })).toContainText('Inactivo');
+      await noHorizontalOverflow(page);
+      await page.screenshot({ path: testInfo.outputPath('cu15-baja-' + actor + '.png'), fullPage: true });
+    } finally { await context.close(); }
+  });
+}

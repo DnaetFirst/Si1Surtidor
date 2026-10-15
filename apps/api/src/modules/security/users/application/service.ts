@@ -31,7 +31,8 @@ export class UsersService {
             if (existing.rol.codigo === 'ASU') throw new ForbiddenException('Solo el ASU puede editar su propia cuenta desde Mi perfil.');
             if (dto.rolId !== undefined)
                 await this.policy.assertAssignableRole(tx, dto.rolId, req);
-            await this.policy.assertBranch(tx, dto.sucursalId);
+            if (dto.sucursalId !== existing.sucursalId)
+                await this.policy.assertBranch(tx, dto.sucursalId);
             await this.repository.update(dto, ci, passwordHash, tx);
             if (passwordHash)
                 await this.repository.revokeSessions(ci, tx);

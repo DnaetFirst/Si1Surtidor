@@ -1,4 +1,5 @@
 import { Navigate, Outlet, Route, Routes } from 'react-router-dom';
+import { Branches, BranchForm } from '../modules/enterprise/branches/presentation/Branches';
 import { AuditPage } from '../modules/enterprise/audit/presentation/Audit';
 import { CompanyPage } from '../modules/enterprise/company/presentation/Company';
 import { CategoriesGroups } from '../modules/inventory/presentation/CategoriesGroups';
@@ -97,6 +98,12 @@ export function AppRoutes() {
           </Route>
 
           {/* Gestión de Empresa */}
+          <Route element={<Guard module="sucursales" />}>
+            <Route path="/empresa/sucursales" element={<Branches />} />
+            <Route path="/empresa/sucursales/crear" element={<BranchForm />} />
+            <Route path="/empresa/sucursales/:id/editar" element={<BranchForm />} />
+            <Route path="/empresa/sucursales/:id" element={<BranchForm readonly />} />
+          </Route>
           <Route element={<Guard module="empresa" />}>
             <Route path="/empresa" element={<CompanyPage />} />
           </Route>

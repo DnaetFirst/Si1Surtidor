@@ -5,6 +5,7 @@ import { requiredEnv } from '../config';
 const roles = [['ASU', 'Administrador Super Usuario'], ['ATI', 'Administrador TI'],
   ['GG', 'Gerente General'], ['GS', 'Gerente de Sucursal'], ['E', 'Empleado']];
 const permissions = [
+  ['sucursales.gestionar', 'Gestionar sucursales', 'sucursales', 'gestionar', false],
   ['usuarios.gestionar', 'Gestionar usuarios', 'usuarios', 'gestionar', false],
   ['roles.gestionar', 'Gestionar roles', 'roles', 'gestionar', false],
   ['permisos.gestionar', 'Gestionar permisos', 'permisos', 'gestionar', true],
@@ -32,14 +33,16 @@ export async function seed(db: DataSource): Promise<void> {
     // Ensure Cycle 2 permissions are assigned to standard roles
     const cycle2Assignments: Record<string, string[]> = {
       ASU: ['modulos.gestionar'],
-      ATI: ['productos.gestionar', 'combustibles.gestionar', 'categorias.gestionar', 'grupos.gestionar'],
-      GG: ['productos.gestionar', 'combustibles.gestionar', 'categorias.gestionar', 'grupos.gestionar'],
+      ATI: ['productos.gestionar', 'combustibles.gestionar', 'categorias.gestionar', 'grupos.gestionar', 'sucursales.gestionar'],
+      GG: ['productos.gestionar', 'combustibles.gestionar', 'categorias.gestionar', 'grupos.gestionar', 'sucursales.gestionar'],
+      GS: ['sucursales.gestionar'],
     };
     for (const [role, codes] of Object.entries(cycle2Assignments)) {
       await em.query(`INSERT INTO permiso_rol(id_rol,id_permiso)
         SELECT r.id,p.id FROM rol r CROSS JOIN permiso p WHERE r.codigo=$1 AND p.codigo=ANY($2)
         ON CONFLICT DO NOTHING`, [role, codes]);
     }
+
 
     // Default System Modules (CU20)
     const defaultModules = [
@@ -106,7 +109,7 @@ export async function seed(db: DataSource): Promise<void> {
     if (!existing.length) {
       const assignments: Record<string, string[]> = {
         ASU: ['permisos.gestionar', 'bitacora.ver', 'bitacora.exportar', 'bitacora.archivar'],
-        ATI: ['usuarios.gestionar', 'roles.gestionar', 'empresa.gestionar'], GG: ['empresa.gestionar'],
+        ATI: ['usuarios.gestionar', 'roles.gestionar', 'empresa.gestionar', 'sucursales.gestionar'], GG: ['empresa.gestionar', 'sucursales.gestionar'], GS: ['sucursales.gestionar'],
       };
       for (const [role, codes] of Object.entries(assignments)) {
         await em.query(`INSERT INTO permiso_rol(id_rol,id_permiso)

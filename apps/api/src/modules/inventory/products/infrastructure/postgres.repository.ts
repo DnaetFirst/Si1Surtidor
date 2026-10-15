@@ -49,7 +49,7 @@ export class PostgresProductRepository extends ProductRepository {
   }
 
   async sucursalExists(id: number, tx?: TransactionContext): Promise<boolean> {
-    const [res] = await database(this.db, tx).query(`SELECT 1 FROM sucursal WHERE id = $1`, [id]);
+    const [res] = await database(this.db, tx).query(`SELECT 1 FROM sucursal WHERE id = $1 AND activo=true`, [id]);
     return !!res;
   }
 

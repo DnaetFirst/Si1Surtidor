@@ -294,6 +294,7 @@ export function UserForm({ readonly = false }: {
                             />
                         ) : (
                             <select value={form.sucursalId} onChange={set('sucursalId')}>
+                                {detail.data?.sucursal && !branches.data?.some(branch => branch.id === detail.data?.sucursal?.id) && <option value={detail.data.sucursal.id}>{detail.data.sucursal.nombre} (asignación existente)</option>}
                                 <option value="">Sin sucursal asignada</option>
                                 {branches.data?.map(branch => (
                                     <option key={branch.id} value={branch.id}>

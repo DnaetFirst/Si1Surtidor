@@ -5,4 +5,5 @@ export interface BranchRecord {
     telefono: string;
     correo: string;
     empresaId: number;
+    activo: boolean;
 }

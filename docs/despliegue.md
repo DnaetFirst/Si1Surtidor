@@ -43,6 +43,8 @@ Validar `/api/health`, login, persistencia después de reiniciar, cookies Secure
 
 ## Observación
 
+CU15 incorpora la migración `BranchManagement1700000000003`: agrega `sucursales.gestionar` a ATI, GG y GS en instalaciones existentes. No modifica ni elimina sucursales, usuarios o productos. En instalaciones nuevas el seed asigna ese permiso; ASU lo recibe automáticamente. La migración se ejecuta una sola vez y no restablece cambios posteriores de permisos. Conservar una copia de `permiso` y `permiso_rol` antes de actualizar.
+
 El ASU obtiene todos los permisos activos automáticamente al consultar su sesión y al autorizar cada operación. La actualización se aplica también a cuentas existentes, sin migraciones ni reasignaciones manuales. El detalle del rol muestra estos permisos como protegidos; ATI no puede retirar acceso al superusuario. Los demás roles conservan sus asignaciones.
 
 La API expone salud de conexión y errores sanitizados; los eventos de autenticación y operaciones administrativas quedan en bitácora. Para producción con múltiples réplicas, el límite adicional por IP debe moverse del proceso a un almacén compartido. El bloqueo de tres intentos por cuenta ya es persistente y compartido en PostgreSQL.

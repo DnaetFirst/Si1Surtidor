@@ -45,7 +45,7 @@ export class ProductService {
       if (dto.idSucursal !== undefined && dto.idSucursal !== null) {
         const sucOk = await this.repository.sucursalExists(dto.idSucursal, tx);
         if (!sucOk) {
-          throw new BadRequestException('La sucursal especificada no existe.');
+          throw new BadRequestException('La sucursal especificada no existe o está deshabilitada.');
         }
       }
 
@@ -90,10 +90,10 @@ export class ProductService {
         }
       }
 
-      if (dto.idSucursal !== undefined && dto.idSucursal !== null) {
+      if (dto.idSucursal !== undefined && dto.idSucursal !== null && dto.idSucursal !== current.idSucursal) {
         const sucOk = await this.repository.sucursalExists(dto.idSucursal, tx);
         if (!sucOk) {
-          throw new BadRequestException('La sucursal especificada no existe.');
+          throw new BadRequestException('La sucursal especificada no existe o está deshabilitada.');
         }
       }
 

@@ -1,4 +1,6 @@
 import { ReactNode } from 'react';
+import { BranchesApiProvider } from '../modules/enterprise/branches/application/repository-context';
+import { branchesApi } from '../modules/enterprise/branches/infrastructure/api';
 import { Provider } from 'react-redux';
 import { BrowserRouter } from 'react-router-dom';
 import { SWRConfig } from 'swr';
@@ -34,7 +36,7 @@ export function Providers({ children }: { children: ReactNode }) {
                     <AuditApiProvider value={auditApi}>
                       <InventoryApiProvider value={inventoryApi}>
                         <SystemModulesApiProvider value={systemModulesApi}>
-                          {children}
+                          <BranchesApiProvider value={branchesApi}>{children}</BranchesApiProvider>
                         </SystemModulesApiProvider>
                       </InventoryApiProvider>
                     </AuditApiProvider>

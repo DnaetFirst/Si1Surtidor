@@ -18,6 +18,7 @@ export function firstPath(user: SessionUser | null) {
         ['permisos', '/usuarios/permisos'],
         ['modulos', '/usuarios/modulos'],
         ['empresa', '/empresa'],
+        ['sucursales', '/empresa/sucursales'],
         ['bitacora', '/empresa/bitacora'],
         ['productos', '/productos'],
         ['combustibles', '/productos/combustibles'],

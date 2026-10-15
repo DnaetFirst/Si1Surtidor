@@ -1,4 +1,5 @@
 export const CAPABILITIES = [
+    ...['gestionar', 'ver', 'crear', 'editar', 'deshabilitar'].map(accion => ({ modulo: 'sucursales', accion })),
     ...['usuarios', 'roles', 'permisos'].flatMap(modulo => ['gestionar', 'ver', 'crear', 'editar', 'deshabilitar', ...(modulo === 'permisos' ? ['exportar'] : [])].map(accion => ({ modulo, accion }))),
     ...['gestionar', 'ver', 'crear', 'editar'].map(accion => ({ modulo: 'empresa', accion })),
     ...['ver', 'exportar', 'archivar'].map(accion => ({ modulo: 'bitacora', accion })),

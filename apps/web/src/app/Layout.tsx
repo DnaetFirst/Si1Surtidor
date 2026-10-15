@@ -108,6 +108,11 @@ export function Layout() {
     if (location.pathname.includes('bitacora')) {
       crumbs.push({ label: 'Bitácora' });
     }
+    if (location.pathname.includes('sucursales')) {
+      crumbs.push({ label: 'Sucursales', href: '/empresa/sucursales' });
+      if (location.pathname.endsWith('/crear')) crumbs.push({ label: 'Crear sucursal' });
+      else if (location.pathname.endsWith('/editar')) crumbs.push({ label: 'Editar sucursal' });
+    }
   } else if (location.pathname.startsWith('/productos')) {
     crumbs.push({ label: 'Inventario', ...(can('productos') ? { href: '/productos' } : {}) });
     if (location.pathname.includes('/combustibles')) {
@@ -207,7 +212,7 @@ export function Layout() {
             </div>
           )}
 
-          {(can('empresa') || can('bitacora')) && (
+          {(can('empresa') || can('bitacora') || can('sucursales')) && (
             <div className="nav-group">
               <div className="nav-item nav-group-heading">
                 <Building2 size={21} />
@@ -225,6 +230,11 @@ export function Layout() {
                   <NavLink to="/empresa/bitacora" className="nav-item" title="Bitácora">
                     <ScrollText size={20} />
                     <span>Bitácora</span>
+                  </NavLink>
+                )}
+                {can('sucursales') && (
+                  <NavLink to="/empresa/sucursales" className="nav-item" title="Sucursales">
+                    <Building2 size={20}/><span>Sucursales</span>
                   </NavLink>
                 )}
               </div>
