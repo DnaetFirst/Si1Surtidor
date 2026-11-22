@@ -48,3 +48,31 @@ export interface Product {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface ProductExit {
+  id: number;
+  motivo: string;
+  cantidad: number;
+  fecha: string;
+  idLote: number | null;
+  loteCodigo?: string | null;
+  idProducto: number;
+  productoNombre?: string;
+  productoCodigo?: string;
+  idSucursal?: number | null;
+  sucursalNombre?: string | null;
+  usuarioNombre?: string;
+}
+
+export interface ProductNotification {
+  id: number;
+  titulo: string;
+  descripcion: string;
+  fecha: string;
+  resuelta: boolean;
+  idProducto: number;
+  productoNombre?: string;
+  productoStock?: number;
+  productoStockMinimo?: number;
+  visto?: boolean;
+}

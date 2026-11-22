@@ -1,4 +1,4 @@
-import { Category, Fuel, Group, Product } from './models';
+import { Category, Fuel, Group, Product, ProductExit } from './models';
 
 export interface InventoryApi {
   listProductsKey(): string;
@@ -20,4 +20,14 @@ export interface InventoryApi {
   createGroup(data: Partial<Group>): Promise<Group>;
   updateGroup(id: number, data: Partial<Group>): Promise<Group>;
   deleteGroup(id: number): Promise<void>;
+
+  // Salidas
+  listExitsKey(q?: string, branchId?: number, page?: number): string;
+  createExit(data: { motivo: string; cantidad: number; idProducto: number; idLote?: number }): Promise<ProductExit>;
+
+  // Notificaciones
+  listNotificationsKey(): string;
+  getUnreadCount(): Promise<{ noLeidas: number }>;
+  markNotificationAsRead(id: number): Promise<void>;
+  resolveNotification(id: number): Promise<void>;
 }

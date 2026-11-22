@@ -4,3 +4,5 @@ export interface PageData<T> {
     page: number;
     pageSize: number;
 }
+
+export type PageResult<T> = PageData<T>;

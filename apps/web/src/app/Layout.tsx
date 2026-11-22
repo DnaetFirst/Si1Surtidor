@@ -1,4 +1,6 @@
 import {
+  ArrowDownToLine,
+  BarChart3,
   Boxes,
   Building,
   Building2,
@@ -6,14 +8,19 @@ import {
   ChevronLeft,
   ChevronRight,
   CircleUserRound,
+  FileSpreadsheet,
   FolderTree,
   Fuel,
+  Gauge,
   KeyRound,
   LogOut,
   Menu,
   Package,
   ScrollText,
   ShieldCheck,
+  ShoppingCart,
+  Tags,
+  Truck,
   UserRound,
   UsersRound,
   X,
@@ -21,6 +28,7 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useSWRConfig } from 'swr';
+import { NotificationsDrawer } from '../modules/inventory/presentation/NotificationsDrawer';
 import { allowed, firstPath, setNotice, setUser, useAppDispatch, useSession } from '../modules/security/auth/application/session';
 import type { SessionUser } from '../modules/security/auth/domain/models';
 import { api, send } from '../shared/infrastructure/http';
@@ -127,6 +135,42 @@ export function Layout() {
       if (location.pathname.endsWith('/crear')) crumbs.push({ label: 'Crear producto' });
       else if (location.pathname.endsWith('/editar')) crumbs.push({ label: 'Modificar producto' });
     }
+  } else if (location.pathname.startsWith('/inventario/salidas')) {
+    crumbs.push({ label: 'Inventario', ...(can('productos') ? { href: '/productos' } : {}) });
+    crumbs.push({ label: 'Salida de productos', ...(can('salidas') ? { href: '/inventario/salidas' } : {}) });
+    if (location.pathname.endsWith('/crear')) crumbs.push({ label: 'Registrar salida' });
+  } else if (location.pathname.startsWith('/compras')) {
+    crumbs.push({ label: 'Compras' });
+    if (location.pathname.startsWith('/compras/proveedores')) {
+      crumbs.push({ label: 'Proveedores', ...(can('proveedores') ? { href: '/compras/proveedores' } : {}) });
+      if (location.pathname.endsWith('/crear')) crumbs.push({ label: 'Crear proveedor' });
+      else if (location.pathname.endsWith('/editar')) crumbs.push({ label: 'Modificar proveedor' });
+      else if (location.pathname !== '/compras/proveedores') crumbs.push({ label: 'Detalle de proveedor' });
+    } else if (location.pathname.startsWith('/compras/ordenes')) {
+      crumbs.push({ label: 'Órdenes de compra', ...(can('ordenes') ? { href: '/compras/ordenes' } : {}) });
+      if (location.pathname.endsWith('/crear')) crumbs.push({ label: 'Crear orden' });
+    } else {
+      crumbs.push({ label: 'Compras', ...(can('compras') ? { href: '/compras' } : {}) });
+      if (location.pathname.endsWith('/crear')) crumbs.push({ label: 'Registrar compra' });
+      else if (location.pathname !== '/compras') crumbs.push({ label: 'Detalle de compra' });
+    }
+  } else if (location.pathname.startsWith('/ventas')) {
+    crumbs.push({ label: 'Ventas' });
+    if (location.pathname.startsWith('/ventas/dispensadores')) {
+      crumbs.push({ label: 'Dispensadores', ...(can('dispensadores') ? { href: '/ventas/dispensadores' } : {}) });
+      if (location.pathname.endsWith('/crear')) crumbs.push({ label: 'Crear dispensador' });
+      else if (location.pathname.endsWith('/editar')) crumbs.push({ label: 'Modificar dispensador' });
+    } else if (location.pathname.startsWith('/ventas/descuentos')) {
+      crumbs.push({ label: 'Descuentos', ...(can('descuentos') ? { href: '/ventas/descuentos' } : {}) });
+      if (location.pathname.endsWith('/crear')) crumbs.push({ label: 'Crear descuento' });
+      else if (location.pathname.endsWith('/editar')) crumbs.push({ label: 'Modificar descuento' });
+    } else {
+      crumbs.push({ label: 'Ventas', ...(can('ventas') ? { href: '/ventas' } : {}) });
+      if (location.pathname.endsWith('/nueva')) crumbs.push({ label: 'Nueva venta' });
+      else if (location.pathname !== '/ventas') crumbs.push({ label: 'Nota de venta' });
+    }
+  } else if (location.pathname.startsWith('/reportes')) {
+    crumbs.push({ label: 'Reportes y Estadísticas', href: '/reportes' });
   }
 
   const logout = async () => {
@@ -241,7 +285,7 @@ export function Layout() {
             </div>
           )}
 
-          {(can('productos') || can('combustibles') || can('categorias')) && (
+          {(can('productos') || can('combustibles') || can('categorias') || can('salidas')) && (
             <div className="nav-group">
               <div className="nav-item nav-group-heading">
                 <Package size={21} />
@@ -281,8 +325,81 @@ export function Layout() {
                     <span>Categorías y Grupos</span>
                   </NavLink>
                 )}
+                {can('salidas') && (
+                  <NavLink to="/inventario/salidas" className="nav-item" title="Salida de productos">
+                    <ArrowDownToLine size={20} />
+                    <span>Salida de productos</span>
+                  </NavLink>
+                )}
               </div>
             </div>
+          )}
+
+          {(can('proveedores') || can('ordenes') || can('compras')) && (
+            <div className="nav-group">
+              <div className="nav-item nav-group-heading">
+                <Truck size={21} />
+                <span>Gestión de Compras</span>
+                <ChevronDown size={20} />
+              </div>
+              <div className="nav-children">
+                {can('proveedores') && (
+                  <NavLink to="/compras/proveedores" className="nav-item" title="Proveedores">
+                    <Truck size={20} />
+                    <span>Proveedores</span>
+                  </NavLink>
+                )}
+                {can('ordenes') && (
+                  <NavLink to="/compras/ordenes" className="nav-item" title="Órdenes de compra">
+                    <FileSpreadsheet size={20} />
+                    <span>Órdenes de compra</span>
+                  </NavLink>
+                )}
+                {can('compras') && (
+                  <NavLink to="/compras" end className="nav-item" title="Compras">
+                    <ShoppingCart size={20} />
+                    <span>Compras</span>
+                  </NavLink>
+                )}
+              </div>
+            </div>
+          )}
+
+          {(can('ventas') || can('dispensadores') || can('descuentos')) && (
+            <div className="nav-group">
+              <div className="nav-item nav-group-heading">
+                <ShoppingCart size={21} />
+                <span>Gestión de Ventas</span>
+                <ChevronDown size={20} />
+              </div>
+              <div className="nav-children">
+                {can('ventas') && (
+                  <NavLink to="/ventas" end className="nav-item" title="Ventas">
+                    <ShoppingCart size={20} />
+                    <span>Ventas</span>
+                  </NavLink>
+                )}
+                {can('dispensadores') && (
+                  <NavLink to="/ventas/dispensadores" className="nav-item" title="Dispensadores">
+                    <Gauge size={20} />
+                    <span>Dispensadores</span>
+                  </NavLink>
+                )}
+                {can('descuentos') && (
+                  <NavLink to="/ventas/descuentos" className="nav-item" title="Descuentos">
+                    <Tags size={20} />
+                    <span>Descuentos</span>
+                  </NavLink>
+                )}
+              </div>
+            </div>
+          )}
+
+          {can('reportes') && (
+            <NavLink to="/reportes" className="nav-item" title="Reportes y Estadísticas" style={{ marginTop: '4px' }}>
+              <BarChart3 size={20} />
+              <span>Reportes</span>
+            </NavLink>
           )}
         </nav>
       </aside>
@@ -303,34 +420,38 @@ export function Layout() {
               </span>
             ))}
           </nav>
-          <div
-            className="account"
-            ref={accountRef}
-            onBlur={event => {
-              if (!event.currentTarget.contains(event.relatedTarget as Node)) setAccount(false);
-            }}
-          >
-            <button className="avatar" aria-label="Mi cuenta" aria-expanded={account} onClick={() => setAccount(!account)}>
-              <CircleUserRound size={21} />
-            </button>
-            {account && (
-              <div className="account-dropdown">
-                <strong>{user?.nombre}</strong>
-                <span>{user?.correo}</span>
-                <span className="account-role">
-                  <ShieldCheck size={14} />
-                  {user?.rol.nombre}
-                </span>
-                <Link className="button" to="/mi-perfil">
-                  <UserRound size={16} />
-                  Mi perfil
-                </Link>
-                <button onClick={logout}>
-                  <LogOut size={16} />
-                  Cerrar sesión
-                </button>
-              </div>
-            )}
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginLeft: 'auto' }}>
+            <NotificationsDrawer />
+            <div
+              className="account"
+              ref={accountRef}
+              onBlur={event => {
+                if (!event.currentTarget.contains(event.relatedTarget as Node)) setAccount(false);
+              }}
+            >
+              <button className="avatar" aria-label="Mi cuenta" aria-expanded={account} onClick={() => setAccount(!account)}>
+                <CircleUserRound size={21} />
+              </button>
+              {account && (
+                <div className="account-dropdown">
+                  <strong>{user?.nombre}</strong>
+                  <span>{user?.correo}</span>
+                  <span className="account-role">
+                    <ShieldCheck size={14} />
+                    {user?.rol.nombre}
+                  </span>
+                  <Link className="button" to="/mi-perfil">
+                    <UserRound size={16} />
+                    Mi perfil
+                  </Link>
+                  <button onClick={logout}>
+                    <LogOut size={16} />
+                    Cerrar sesión
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
         <main id="main-content" className="main-content">
@@ -345,7 +466,7 @@ export function Layout() {
           <ErrorBox error={error} />
           <Outlet />
         </main>
-        <footer className="mobile-footer">Mi Gasolinera · Ciclo 2</footer>
+        <footer className="mobile-footer">Mi Gasolinera · Sistema de Gestión</footer>
       </div>
     </div>
   );

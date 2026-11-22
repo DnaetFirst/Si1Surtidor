@@ -1,5 +1,5 @@
 import { send } from '../../../shared/infrastructure/http';
-import { Category, Fuel, Group, Product } from '../domain/models';
+import { Category, Fuel, Group, Product, ProductExit } from '../domain/models';
 import { InventoryApi } from '../domain/repository';
 
 export const inventoryApi: InventoryApi = {
@@ -22,4 +22,15 @@ export const inventoryApi: InventoryApi = {
   createGroup: (data: Partial<Group>) => send<Group>('/grupos', 'POST', data),
   updateGroup: (id: number, data: Partial<Group>) => send<Group>(`/grupos/${id}`, 'PATCH', data),
   deleteGroup: (id: number) => send<void>(`/grupos/${id}`, 'DELETE'),
+
+  // Salidas
+  listExitsKey: (q = '', branchId?: number, page = 1) =>
+    `/inventario/salidas?q=${encodeURIComponent(q)}${branchId ? `&sucursalId=${branchId}` : ''}&page=${page}&pageSize=10`,
+  createExit: (data) => send<ProductExit>('/inventario/salidas', 'POST', data),
+
+  // Notificaciones
+  listNotificationsKey: () => '/inventario/notificaciones?page=1&pageSize=20',
+  getUnreadCount: () => send<{ noLeidas: number }>('/inventario/notificaciones/conteo-no-leidas', 'GET'),
+  markNotificationAsRead: (id: number) => send<void>(`/inventario/notificaciones/${id}/leida`, 'POST'),
+  resolveNotification: (id: number) => send<void>(`/inventario/notificaciones/${id}/resolver`, 'PATCH'),
 };

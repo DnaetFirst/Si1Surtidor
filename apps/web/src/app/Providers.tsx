@@ -10,6 +10,12 @@ import { CompanyApiProvider } from '../modules/enterprise/company/application/re
 import { companyApi } from '../modules/enterprise/company/infrastructure/api';
 import { InventoryApiProvider } from '../modules/inventory/application/repository-context';
 import { inventoryApi } from '../modules/inventory/infrastructure/api';
+import { PurchasesApiProvider } from '../modules/purchases/application/repository-context';
+import { purchasesApi } from '../modules/purchases/infrastructure/api';
+import { ReportsApiProvider } from '../modules/reports/application/repository-context';
+import { reportsApi } from '../modules/reports/infrastructure/api';
+import { SalesApiProvider } from '../modules/sales/application/repository-context';
+import { salesApi } from '../modules/sales/infrastructure/api';
 import { AuthApiProvider } from '../modules/security/auth/application/repository-context';
 import { store } from '../modules/security/auth/application/session';
 import { authApi } from '../modules/security/auth/infrastructure/api';
@@ -36,7 +42,13 @@ export function Providers({ children }: { children: ReactNode }) {
                     <AuditApiProvider value={auditApi}>
                       <InventoryApiProvider value={inventoryApi}>
                         <SystemModulesApiProvider value={systemModulesApi}>
-                          <BranchesApiProvider value={branchesApi}>{children}</BranchesApiProvider>
+                          <BranchesApiProvider value={branchesApi}>
+                            <PurchasesApiProvider value={purchasesApi}>
+                              <SalesApiProvider value={salesApi}>
+                                <ReportsApiProvider value={reportsApi}>{children}</ReportsApiProvider>
+                              </SalesApiProvider>
+                            </PurchasesApiProvider>
+                          </BranchesApiProvider>
                         </SystemModulesApiProvider>
                       </InventoryApiProvider>
                     </AuditApiProvider>
