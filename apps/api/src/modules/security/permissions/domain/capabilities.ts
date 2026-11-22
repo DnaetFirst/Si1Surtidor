@@ -5,5 +5,7 @@ export const CAPABILITIES = [
     ...['ver', 'exportar', 'archivar'].map(accion => ({ modulo: 'bitacora', accion })),
     ...['productos', 'combustibles', 'categorias', 'grupos'].flatMap(modulo => ['gestionar', 'ver', 'crear', 'editar', 'eliminar'].map(accion => ({ modulo, accion }))),
     ...['gestionar', 'ver', 'crear', 'editar', 'eliminar'].map(accion => ({ modulo: 'modulos', accion })),
+    ...['proveedores', 'dispensadores', 'descuentos', 'ordenes', 'compras', 'ventas', 'salidas', 'notificaciones'].flatMap(modulo => ['gestionar', 'ver', 'crear', 'editar', 'deshabilitar'].map(accion => ({ modulo, accion }))),
+    ...['gestionar', 'ver', 'exportar'].map(accion => ({ modulo: 'reportes', accion })),
 ].map(capability => ({ ...capability, codigo: `${capability.modulo}.${capability.accion}`, reservado: ['permisos', 'bitacora', 'modulos'].includes(capability.modulo) }));
 

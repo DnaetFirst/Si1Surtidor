@@ -185,3 +185,360 @@ export class CycleTwo1700000000002 implements MigrationInterface {
     throw new Error('La reversión destructiva requiere restaurar una copia de seguridad explícitamente.');
   }
 }
+
+export class CycleThree1700000000004 implements MigrationInterface {
+  public async up(runner: QueryRunner): Promise<void> {
+    await runner.query(`
+      -- CU13: Proveedor
+      CREATE TABLE IF NOT EXISTS proveedor (
+        id serial PRIMARY KEY,
+        nombre varchar(150) NOT NULL,
+        razon_social varchar(150),
+        nit varchar(20) NOT NULL,
+        contacto varchar(100) NOT NULL DEFAULT '',
+        telefono varchar(30) NOT NULL DEFAULT '',
+        correo varchar(100) NOT NULL DEFAULT '',
+        direccion varchar(255) NOT NULL DEFAULT '',
+        detalle varchar(255) NOT NULL DEFAULT '',
+        activo boolean NOT NULL DEFAULT true,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS proveedor_nit_unique ON proveedor(lower(nit));
+      CREATE INDEX IF NOT EXISTS proveedor_nombre_idx ON proveedor(lower(nombre));
+
+      -- Proveedor ↔ Producto (Precios pactados)
+      CREATE TABLE IF NOT EXISTS proveedor_producto (
+        id serial PRIMARY KEY,
+        detalle varchar(255) NOT NULL DEFAULT '',
+        ultimo_precio numeric(12,2) NOT NULL DEFAULT 0.00,
+        id_proveedor integer NOT NULL REFERENCES proveedor(id) ON DELETE CASCADE,
+        id_producto integer NOT NULL REFERENCES producto(id) ON DELETE CASCADE,
+        activo boolean NOT NULL DEFAULT true,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        UNIQUE(id_proveedor, id_producto)
+      );
+      CREATE INDEX IF NOT EXISTS pp_proveedor_idx ON proveedor_producto(id_proveedor);
+      CREATE INDEX IF NOT EXISTS pp_producto_idx ON proveedor_producto(id_producto);
+
+      -- CU7: Dispensador
+      CREATE TABLE IF NOT EXISTS dispensador (
+        id serial PRIMARY KEY,
+        ubicacion varchar(100) NOT NULL,
+        capacidad_maxima integer NOT NULL DEFAULT 0,
+        esta_activo boolean NOT NULL DEFAULT true,
+        estado varchar(20) NOT NULL DEFAULT 'Activo',
+        id_sucursal integer NOT NULL REFERENCES sucursal(id) ON DELETE CASCADE,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS dispensador_sucursal_idx ON dispensador(id_sucursal);
+
+      -- Mangueras del dispensador
+      CREATE TABLE IF NOT EXISTS manguera (
+        id serial PRIMARY KEY,
+        nombre varchar(100) NOT NULL DEFAULT 'Manguera',
+        numero integer,
+        lado varchar(10),
+        color varchar(30),
+        esta_activo boolean NOT NULL DEFAULT true,
+        estado varchar(20) NOT NULL DEFAULT 'Activo',
+        id_dispensador integer NOT NULL REFERENCES dispensador(id) ON DELETE CASCADE,
+        id_combustible integer NOT NULL REFERENCES combustible(id) ON DELETE RESTRICT
+      );
+      CREATE INDEX IF NOT EXISTS manguera_dispensador_idx ON manguera(id_dispensador);
+      ALTER TABLE IF EXISTS manguera ADD COLUMN IF NOT EXISTS numero integer;
+      ALTER TABLE IF EXISTS manguera ADD COLUMN IF NOT EXISTS lado varchar(10);
+      ALTER TABLE IF EXISTS manguera ADD COLUMN IF NOT EXISTS color varchar(30);
+
+      -- CU9: Órdenes de Compra
+      CREATE TABLE IF NOT EXISTS orden_compra (
+        id serial PRIMARY KEY,
+        codigo varchar(50) NOT NULL UNIQUE,
+        cantidad integer NOT NULL DEFAULT 0,
+        fecha date NOT NULL DEFAULT CURRENT_DATE,
+        hora time NOT NULL DEFAULT CURRENT_TIME,
+        motivo varchar(255) NOT NULL DEFAULT '',
+        estado varchar(20) NOT NULL DEFAULT 'PENDIENTE' CHECK (estado IN ('PENDIENTE','APROBADA','RECIBIDA','ANULADA')),
+        id_proveedor integer REFERENCES proveedor(id) ON DELETE SET NULL,
+        id_sucursal integer NOT NULL REFERENCES sucursal(id) ON DELETE CASCADE,
+        ci_usuario varchar(20) NOT NULL REFERENCES usuario(ci) ON DELETE CASCADE,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS orden_compra_sucursal_idx ON orden_compra(id_sucursal);
+      CREATE INDEX IF NOT EXISTS orden_compra_estado_idx ON orden_compra(estado);
+
+      -- Detalle Orden de Compra
+      CREATE TABLE IF NOT EXISTS detalle_orden_compra (
+        id serial PRIMARY KEY,
+        cantidad numeric(12,2) NOT NULL DEFAULT 0.00,
+        id_producto integer NOT NULL REFERENCES producto(id) ON DELETE CASCADE,
+        id_orden_compra integer NOT NULL REFERENCES orden_compra(id) ON DELETE CASCADE
+      );
+      CREATE INDEX IF NOT EXISTS detalle_orden_compra_orden_idx ON detalle_orden_compra(id_orden_compra);
+
+      -- CU10: Notas de Compra (Recepción)
+      CREATE TABLE IF NOT EXISTS nota_compra (
+        id serial PRIMARY KEY,
+        codigo varchar(50) NOT NULL UNIQUE,
+        motivo varchar(255) NOT NULL DEFAULT '',
+        monto_total numeric(14,2) NOT NULL DEFAULT 0.00,
+        moneda varchar(10) NOT NULL DEFAULT 'BOB',
+        fecha date NOT NULL DEFAULT CURRENT_DATE,
+        hora time NOT NULL DEFAULT CURRENT_TIME,
+        id_proveedor integer REFERENCES proveedor(id) ON DELETE SET NULL,
+        id_sucursal integer REFERENCES sucursal(id) ON DELETE CASCADE,
+        id_orden integer REFERENCES orden_compra(id) ON DELETE SET NULL,
+        ci_usuario varchar(20) NOT NULL REFERENCES usuario(ci) ON DELETE CASCADE,
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS nota_compra_sucursal_idx ON nota_compra(id_sucursal);
+
+      -- Lotes de inventario
+      CREATE TABLE IF NOT EXISTS lote (
+        id serial PRIMARY KEY,
+        codigo varchar(50) NOT NULL,
+        fecha_vencimiento date,
+        detalle varchar(255) NOT NULL DEFAULT '',
+        stock numeric(12,2) NOT NULL DEFAULT 0.00,
+        stock_inicial numeric(12,2) NOT NULL DEFAULT 0.00,
+        esta_activo boolean NOT NULL DEFAULT true,
+        id_producto integer REFERENCES producto(id) ON DELETE CASCADE,
+        id_proveedor_producto integer REFERENCES proveedor_producto(id) ON DELETE SET NULL,
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS lote_producto_idx ON lote(id_producto);
+
+      -- Detalle de Compra
+      CREATE TABLE IF NOT EXISTS detalle_compra (
+        id serial PRIMARY KEY,
+        cantidad numeric(12,2) NOT NULL DEFAULT 0.00,
+        precio numeric(12,2) NOT NULL DEFAULT 0.00,
+        subtotal numeric(14,2) NOT NULL DEFAULT 0.00,
+        id_nota_compra integer NOT NULL REFERENCES nota_compra(id) ON DELETE CASCADE,
+        id_lote integer REFERENCES lote(id) ON DELETE SET NULL,
+        id_producto integer REFERENCES producto(id) ON DELETE CASCADE
+      );
+      CREATE INDEX IF NOT EXISTS detalle_compra_nota_idx ON detalle_compra(id_nota_compra);
+
+      -- CU12: Descuentos
+      CREATE TABLE IF NOT EXISTS descuento (
+        id serial PRIMARY KEY,
+        nombre varchar(100) NOT NULL,
+        descripcion varchar(255) NOT NULL DEFAULT '',
+        tipo varchar(20) NOT NULL CHECK (tipo IN ('PORCENTAJE','MONTO_FIJO','Porcentaje','Fijo')),
+        valor numeric(10,2) NOT NULL DEFAULT 0.00,
+        monto numeric(10,2) NOT NULL DEFAULT 0.00,
+        porcentaje numeric(5,2) NOT NULL DEFAULT 0.00,
+        activo boolean NOT NULL DEFAULT true,
+        esta_activo boolean NOT NULL DEFAULT true,
+        id_sucursal integer REFERENCES sucursal(id) ON DELETE CASCADE,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS descuento_sucursal_idx ON descuento(id_sucursal);
+
+      -- Cliente (para ventas y fidelización)
+      CREATE TABLE IF NOT EXISTS cliente (
+        id serial PRIMARY KEY,
+        nombre varchar(100) NOT NULL,
+        nit varchar(20) NOT NULL,
+        placa varchar(20) NOT NULL,
+        cantidad_mensual_vendida integer NOT NULL DEFAULT 0,
+        ultima_fecha date,
+        id_sucursal integer REFERENCES sucursal(id) ON DELETE CASCADE,
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS cliente_nit_idx ON cliente(nit);
+      CREATE INDEX IF NOT EXISTS cliente_placa_idx ON cliente(placa);
+
+      -- CU11: Notas de Venta
+      CREATE TABLE IF NOT EXISTS nota_venta (
+        id serial PRIMARY KEY,
+        codigo varchar(50) NOT NULL UNIQUE,
+        nombre_cliente varchar(100) NOT NULL DEFAULT 'Sin Nombre',
+        nit varchar(20) NOT NULL DEFAULT '0',
+        placa varchar(20) NOT NULL DEFAULT '',
+        metodo_pago varchar(30) NOT NULL DEFAULT 'EFECTIVO',
+        monto_pagado numeric(12,2) NOT NULL DEFAULT 0.00,
+        monto_por_cobrar numeric(12,2) NOT NULL DEFAULT 0.00,
+        monto_cambio numeric(12,2) NOT NULL DEFAULT 0.00,
+        fecha date NOT NULL DEFAULT CURRENT_DATE,
+        hora time NOT NULL DEFAULT CURRENT_TIME,
+        estado_b_sisa boolean NOT NULL DEFAULT true,
+        ci_usuario varchar(20) NOT NULL REFERENCES usuario(ci) ON DELETE CASCADE,
+        id_dispensador integer REFERENCES dispensador(id) ON DELETE SET NULL,
+        id_sucursal integer NOT NULL REFERENCES sucursal(id) ON DELETE CASCADE,
+        id_cliente integer REFERENCES cliente(id) ON DELETE SET NULL,
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS nota_venta_sucursal_idx ON nota_venta(id_sucursal);
+      CREATE INDEX IF NOT EXISTS nota_venta_fecha_idx ON nota_venta(fecha DESC);
+
+      -- Detalle de Venta
+      CREATE TABLE IF NOT EXISTS detalle_venta (
+        id serial PRIMARY KEY,
+        cantidad numeric(10,3) NOT NULL DEFAULT 0.000,
+        precio numeric(12,2) NOT NULL DEFAULT 0.00,
+        subtotal numeric(14,2) NOT NULL DEFAULT 0.00,
+        id_nota_venta integer NOT NULL REFERENCES nota_venta(id) ON DELETE CASCADE,
+        id_manguera integer REFERENCES manguera(id) ON DELETE SET NULL,
+        id_producto integer REFERENCES producto(id) ON DELETE SET NULL,
+        id_descuento integer REFERENCES descuento(id) ON DELETE SET NULL
+      );
+      CREATE INDEX IF NOT EXISTS detalle_venta_nota_idx ON detalle_venta(id_nota_venta);
+
+      -- CU18: Notificaciones de Stock
+      CREATE TABLE IF NOT EXISTS notificacion_producto (
+        id serial PRIMARY KEY,
+        titulo varchar(100) NOT NULL,
+        descripcion varchar(255) NOT NULL DEFAULT '',
+        fecha timestamptz NOT NULL DEFAULT now(),
+        resuelta boolean NOT NULL DEFAULT false,
+        id_producto integer NOT NULL REFERENCES producto(id) ON DELETE CASCADE
+      );
+      CREATE TABLE IF NOT EXISTS usuario_notificacion (
+        id serial PRIMARY KEY,
+        visto boolean NOT NULL DEFAULT false,
+        recordar boolean NOT NULL DEFAULT false,
+        ci_usuario varchar(20) NOT NULL REFERENCES usuario(ci) ON DELETE CASCADE,
+        id_notificacion integer NOT NULL REFERENCES notificacion_producto(id) ON DELETE CASCADE
+      );
+
+      -- CU19: Salidas de Productos
+      CREATE TABLE IF NOT EXISTS salida_producto (
+        id serial PRIMARY KEY,
+        motivo varchar(255) NOT NULL,
+        cantidad numeric(10,2) NOT NULL DEFAULT 0.00,
+        fecha timestamptz NOT NULL DEFAULT now(),
+        id_lote integer REFERENCES lote(id) ON DELETE SET NULL,
+        id_producto integer REFERENCES producto(id) ON DELETE CASCADE,
+        id_nota_venta integer REFERENCES nota_venta(id) ON DELETE SET NULL,
+        ci_usuario varchar(20) REFERENCES usuario(ci) ON DELETE SET NULL,
+        id_sucursal integer REFERENCES sucursal(id) ON DELETE SET NULL
+      );
+      ALTER TABLE IF EXISTS salida_producto ALTER COLUMN ci_usuario DROP NOT NULL;
+      ALTER TABLE IF EXISTS salida_producto ALTER COLUMN id_sucursal DROP NOT NULL;
+
+      -- Triggers de actualización de existencias y alertas
+      CREATE OR REPLACE FUNCTION actualizar_stock_venta() RETURNS TRIGGER LANGUAGE plpgsql AS $$
+      BEGIN
+        IF NEW.id_producto IS NOT NULL THEN
+          UPDATE producto SET stock = stock - NEW.cantidad WHERE id = NEW.id_producto;
+        END IF;
+        RETURN NEW;
+      END $$;
+
+      DROP TRIGGER IF EXISTS trg_actualizar_stock_venta ON detalle_venta;
+      CREATE TRIGGER trg_actualizar_stock_venta AFTER INSERT ON detalle_venta
+        FOR EACH ROW EXECUTE FUNCTION actualizar_stock_venta();
+
+      CREATE OR REPLACE FUNCTION actualizar_stock_compra() RETURNS TRIGGER LANGUAGE plpgsql AS $$
+      BEGIN
+        IF NEW.id_producto IS NOT NULL THEN
+          UPDATE producto SET stock = stock + NEW.cantidad WHERE id = NEW.id_producto;
+        END IF;
+        RETURN NEW;
+      END $$;
+
+      DROP TRIGGER IF EXISTS trg_actualizar_stock_compra ON detalle_compra;
+      CREATE TRIGGER trg_actualizar_stock_compra AFTER INSERT ON detalle_compra
+        FOR EACH ROW EXECUTE FUNCTION actualizar_stock_compra();
+
+      CREATE OR REPLACE FUNCTION verificar_stock_minimo() RETURNS TRIGGER LANGUAGE plpgsql AS $$
+      BEGIN
+        IF NEW.stock <= NEW.stock_minimo THEN
+          INSERT INTO notificacion_producto(titulo, descripcion, id_producto)
+          VALUES ('Stock bajo', 'El producto ' || NEW.nombre || ' ha alcanzado el stock mínimo (' || NEW.stock_minimo || ').', NEW.id);
+        END IF;
+        RETURN NEW;
+      END $$;
+
+      DROP TRIGGER IF EXISTS trg_verificar_stock_minimo ON producto;
+      CREATE TRIGGER trg_verificar_stock_minimo AFTER UPDATE OF stock ON producto
+        FOR EACH ROW EXECUTE FUNCTION verificar_stock_minimo();
+
+      -- Permisos para Ciclo 3
+      INSERT INTO permiso(codigo, nombre, descripcion, modulo, accion, reservado) VALUES
+        ('proveedores.gestionar', 'Gestionar proveedores', 'Acceso completo a proveedores', 'proveedores', 'gestionar', false),
+        ('proveedores.ver', 'Ver proveedores', 'Consultar lista y detalle de proveedores', 'proveedores', 'ver', false),
+        ('proveedores.crear', 'Crear proveedor', 'Registrar nuevo proveedor', 'proveedores', 'crear', false),
+        ('proveedores.editar', 'Editar proveedor', 'Modificar datos de proveedor', 'proveedores', 'editar', false),
+        ('proveedores.deshabilitar', 'Deshabilitar proveedor', 'Dar de baja proveedor', 'proveedores', 'deshabilitar', false),
+
+        ('dispensadores.gestionar', 'Gestionar dispensadores', 'Acceso completo a dispensadores', 'dispensadores', 'gestionar', false),
+        ('dispensadores.ver', 'Ver dispensadores', 'Consultar dispensadores y mangueras', 'dispensadores', 'ver', false),
+        ('dispensadores.crear', 'Crear dispensador', 'Registrar dispensador o manguera', 'dispensadores', 'crear', false),
+        ('dispensadores.editar', 'Editar dispensador', 'Modificar dispensador o manguera', 'dispensadores', 'editar', false),
+        ('dispensadores.deshabilitar', 'Deshabilitar dispensador', 'Desactivar dispensador', 'dispensadores', 'deshabilitar', false),
+
+        ('descuentos.gestionar', 'Gestionar descuentos', 'Acceso completo a descuentos', 'descuentos', 'gestionar', false),
+        ('descuentos.ver', 'Ver descuentos', 'Consultar descuentos', 'descuentos', 'ver', false),
+        ('descuentos.crear', 'Crear descuento', 'Registrar nuevo descuento', 'descuentos', 'crear', false),
+        ('descuentos.editar', 'Editar descuento', 'Modificar o activar/desactivar descuento', 'descuentos', 'editar', false),
+
+        ('ordenes.gestionar', 'Gestionar órdenes de compra', 'Acceso completo a órdenes de compra', 'ordenes', 'gestionar', false),
+        ('ordenes.ver', 'Ver órdenes de compra', 'Consultar órdenes de compra', 'ordenes', 'ver', false),
+        ('ordenes.crear', 'Crear orden de compra', 'Registrar orden de compra', 'ordenes', 'crear', false),
+        ('ordenes.editar', 'Editar orden de compra', 'Modificar o anular orden de compra', 'ordenes', 'editar', false),
+
+        ('compras.gestionar', 'Gestionar compras', 'Acceso completo a notas de compra', 'compras', 'gestionar', false),
+        ('compras.ver', 'Ver compras', 'Consultar notas de compra', 'compras', 'ver', false),
+        ('compras.crear', 'Crear compra', 'Registrar recepción y notas de compra', 'compras', 'crear', false),
+
+        ('ventas.gestionar', 'Gestionar ventas', 'Acceso completo a ventas', 'ventas', 'gestionar', false),
+        ('ventas.ver', 'Ver ventas', 'Consultar notas de venta', 'ventas', 'ver', false),
+        ('ventas.crear', 'Registrar venta', 'Registrar ventas de combustible y productos', 'ventas', 'crear', false),
+
+        ('salidas.gestionar', 'Gestionar salidas', 'Acceso a salidas de productos', 'salidas', 'gestionar', false),
+        ('salidas.ver', 'Ver salidas', 'Consultar salidas de inventario', 'salidas', 'ver', false),
+        ('salidas.crear', 'Crear salida', 'Registrar salidas manuales de inventario', 'salidas', 'crear', false),
+
+        ('notificaciones.gestionar', 'Gestionar notificaciones', 'Acceso a alertas de stock', 'notificaciones', 'gestionar', false),
+        ('notificaciones.ver', 'Ver notificaciones', 'Consultar notificaciones de stock', 'notificaciones', 'ver', false)
+      ON CONFLICT (codigo) DO NOTHING;
+
+      -- Asignar permisos nuevos a roles correspondientes (ATI, GS, GG, E)
+      INSERT INTO permiso_rol(id_rol, id_permiso)
+      SELECT r.id, p.id FROM rol r CROSS JOIN permiso p
+      WHERE r.codigo IN ('ASU', 'ATI')
+        AND p.modulo IN ('proveedores', 'dispensadores', 'descuentos', 'ordenes', 'compras', 'ventas', 'salidas', 'notificaciones')
+      ON CONFLICT DO NOTHING;
+
+      INSERT INTO permiso_rol(id_rol, id_permiso)
+      SELECT r.id, p.id FROM rol r CROSS JOIN permiso p
+      WHERE r.codigo IN ('GS', 'GG')
+        AND p.modulo IN ('proveedores', 'dispensadores', 'descuentos', 'ordenes', 'compras', 'ventas', 'salidas', 'notificaciones')
+      ON CONFLICT DO NOTHING;
+
+      INSERT INTO permiso_rol(id_rol, id_permiso)
+      SELECT r.id, p.id FROM rol r CROSS JOIN permiso p
+      WHERE r.codigo = 'E'
+        AND p.codigo IN ('ventas.ver', 'ventas.crear')
+      ON CONFLICT DO NOTHING;
+    `);
+  }
+
+  public async down(): Promise<void> {
+    throw new Error('La reversión destructiva requiere restaurar una copia de seguridad explícitamente.');
+  }
+}
+
+export class CycleThreePatch1700000000005 implements MigrationInterface {
+  public async up(runner: QueryRunner): Promise<void> {
+    await runner.query(`
+      ALTER TABLE IF EXISTS manguera ADD COLUMN IF NOT EXISTS numero integer;
+      ALTER TABLE IF EXISTS manguera ADD COLUMN IF NOT EXISTS lado varchar(10);
+      ALTER TABLE IF EXISTS manguera ADD COLUMN IF NOT EXISTS color varchar(30);
+      ALTER TABLE IF EXISTS salida_producto ALTER COLUMN ci_usuario DROP NOT NULL;
+      ALTER TABLE IF EXISTS salida_producto ALTER COLUMN id_sucursal DROP NOT NULL;
+      ALTER TABLE IF EXISTS orden_compra DROP CONSTRAINT IF EXISTS orden_compra_estado_check;
+      ALTER TABLE IF EXISTS orden_compra ADD CONSTRAINT orden_compra_estado_check CHECK (estado IN ('PENDIENTE', 'APROBADA', 'RECIBIDA', 'ANULADA'));
+    `);
+  }
+
+  public async down(): Promise<void> {
+    throw new Error('La reversión destructiva requiere restaurar una copia de seguridad explícitamente.');
+  }
+}

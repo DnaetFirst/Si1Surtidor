@@ -28,4 +28,16 @@ export class ListQuery {
     @IsOptional()
     @IsIn(['true', 'false', 'all'])
     activo: string = 'all';
+
+    @ApiPropertyOptional({ description: 'Filtro por sucursal.' })
+    @IsOptional()
+    @Type(() => Number)
+    @IsInt()
+    sucursalId?: number;
+
+    @ApiPropertyOptional({ description: 'Filtro por producto.' })
+    @IsOptional()
+    @Type(() => Number)
+    @IsInt()
+    productoId?: number;
 }

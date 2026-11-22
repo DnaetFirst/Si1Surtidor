@@ -18,6 +18,38 @@ const permissions = [
   ['categorias.gestionar', 'Gestionar categorías', 'categorias', 'gestionar', false],
   ['grupos.gestionar', 'Gestionar grupos', 'grupos', 'gestionar', false],
   ['modulos.gestionar', 'Gestionar módulos', 'modulos', 'gestionar', true],
+  ['proveedores.gestionar', 'Gestionar proveedores', 'proveedores', 'gestionar', false],
+  ['proveedores.ver', 'Consultar proveedores', 'proveedores', 'ver', false],
+  ['proveedores.crear', 'Registrar proveedores', 'proveedores', 'crear', false],
+  ['proveedores.editar', 'Modificar proveedores', 'proveedores', 'editar', false],
+  ['proveedores.deshabilitar', 'Deshabilitar proveedores', 'proveedores', 'deshabilitar', false],
+  ['ordenes.gestionar', 'Gestionar órdenes de compra', 'ordenes', 'gestionar', false],
+  ['ordenes.ver', 'Consultar órdenes de compra', 'ordenes', 'ver', false],
+  ['ordenes.crear', 'Registrar órdenes de compra', 'ordenes', 'crear', false],
+  ['ordenes.editar', 'Modificar órdenes de compra', 'ordenes', 'editar', false],
+  ['compras.gestionar', 'Gestionar compras', 'compras', 'gestionar', false],
+  ['compras.ver', 'Consultar compras', 'compras', 'ver', false],
+  ['compras.crear', 'Registrar compras', 'compras', 'crear', false],
+  ['dispensadores.gestionar', 'Gestionar dispensadores', 'dispensadores', 'gestionar', false],
+  ['dispensadores.ver', 'Consultar dispensadores', 'dispensadores', 'ver', false],
+  ['dispensadores.crear', 'Registrar dispensadores', 'dispensadores', 'crear', false],
+  ['dispensadores.editar', 'Modificar dispensadores', 'dispensadores', 'editar', false],
+  ['dispensadores.eliminar', 'Eliminar dispensadores', 'dispensadores', 'eliminar', false],
+  ['descuentos.gestionar', 'Gestionar descuentos', 'descuentos', 'gestionar', false],
+  ['descuentos.ver', 'Consultar descuentos', 'descuentos', 'ver', false],
+  ['descuentos.crear', 'Registrar descuentos', 'descuentos', 'crear', false],
+  ['descuentos.editar', 'Modificar descuentos', 'descuentos', 'editar', false],
+  ['descuentos.eliminar', 'Eliminar descuentos', 'descuentos', 'eliminar', false],
+  ['ventas.gestionar', 'Gestionar ventas', 'ventas', 'gestionar', false],
+  ['ventas.ver', 'Consultar ventas', 'ventas', 'ver', false],
+  ['ventas.crear', 'Registrar ventas', 'ventas', 'crear', false],
+  ['salidas.gestionar', 'Gestionar salidas de productos', 'salidas', 'gestionar', false],
+  ['salidas.ver', 'Consultar salidas de productos', 'salidas', 'ver', false],
+  ['salidas.crear', 'Registrar salidas de productos', 'salidas', 'crear', false],
+  ['notificaciones.gestionar', 'Gestionar notificaciones', 'notificaciones', 'gestionar', false],
+  ['notificaciones.ver', 'Consultar notificaciones', 'notificaciones', 'ver', false],
+  ['reportes.ver', 'Consultar reportes y estadísticas', 'reportes', 'ver', false],
+  ['reportes.exportar', 'Exportar reportes a CSV', 'reportes', 'exportar', false],
 ];
 export async function seed(db: DataSource): Promise<void> {
   await db.transaction(async em => {
@@ -30,6 +62,14 @@ export async function seed(db: DataSource): Promise<void> {
         VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(codigo) DO NOTHING`,
       [code, name, `Permite ${String(name).toLocaleLowerCase('es')}.`, module, action, reserved]);
     }
+
+    // Ensure Cycle 3 and 4 permissions are assigned to standard roles
+    await em.query(`INSERT INTO permiso_rol(id_rol, id_permiso)
+      SELECT r.id, p.id FROM rol r CROSS JOIN permiso p
+      WHERE r.codigo IN ('ASU', 'ATI', 'GG', 'GS')
+        AND p.modulo IN ('proveedores', 'dispensadores', 'descuentos', 'ordenes', 'compras', 'ventas', 'salidas', 'notificaciones', 'reportes')
+      ON CONFLICT DO NOTHING`);
+
     // Ensure Cycle 2 permissions are assigned to standard roles
     const cycle2Assignments: Record<string, string[]> = {
       ASU: ['modulos.gestionar'],
