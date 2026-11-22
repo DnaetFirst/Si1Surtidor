@@ -58,12 +58,31 @@ test('Compartido no depende de módulos y no existen servicios generales de nego
   for (const file of sources) assert.doesNotMatch(readFileSync(file, 'utf8'), /\bBusinessService\b/, file);
 });
 
-test('Los paquetes futuros tienen cuatro capas sin rutas operativas', () => {
-  for (const root of roots) for (const feature of ['purchases', 'sales', 'reports']) {
-    for (const layer of ['presentation', 'application', 'domain', 'infrastructure']) {
-      const dir = `${root}/modules/${feature}/${layer}`;
-      assert.ok(existsSync(`${dir}/README.md`), dir);
-      assert.ok(!files(dir).some(file => /\.tsx?$/.test(file)), `${dir}: funcionalidad fuera del ciclo`);
+test('Los módulos de Ciclos 3 y 4 tienen cuatro capas de Clean Architecture operativas', () => {
+  for (const root of roots) {
+    if (root === 'apps/web/src') {
+      for (const feature of ['purchases', 'sales', 'reports']) {
+        for (const layer of ['presentation', 'application', 'domain', 'infrastructure']) {
+          const dir = `${root}/modules/${feature}/${layer}`;
+          assert.ok(existsSync(`${dir}`), dir);
+          assert.ok(files(dir).some(file => /\.tsx?$/.test(file)), `${dir}: funcionalidad implementada`);
+        }
+      }
+    } else {
+      for (const feature of [
+        'purchases/providers',
+        'purchases/orders',
+        'purchases/receipts',
+        'sales/dispensers',
+        'sales/discounts',
+        'sales/sales-notes',
+      ]) {
+        for (const layer of ['presentation', 'application', 'domain', 'infrastructure']) {
+          const dir = `${root}/modules/${feature}/${layer}`;
+          assert.ok(existsSync(`${dir}`), dir);
+          assert.ok(files(dir).some(file => /\.tsx?$/.test(file)), `${dir}: funcionalidad implementada`);
+        }
+      }
     }
   }
 });
