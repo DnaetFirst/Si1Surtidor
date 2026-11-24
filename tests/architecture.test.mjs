@@ -76,6 +76,7 @@ test('Los módulos de Ciclos 3 y 4 tienen cuatro capas de Clean Architecture ope
         'sales/dispensers',
         'sales/discounts',
         'sales/sales-notes',
+        'reports',
       ]) {
         for (const layer of ['presentation', 'application', 'domain', 'infrastructure']) {
           const dir = `${root}/modules/${feature}/${layer}`;

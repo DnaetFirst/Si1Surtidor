@@ -6,6 +6,7 @@ import 'reflect-metadata';
 import { assertDateRange,calendarRange } from '../modules/enterprise/audit/domain/calendar';
 import { ArchiveDto } from '../modules/enterprise/audit/presentation/dto';
 import { UpdateCompanyDto } from '../modules/enterprise/company/presentation/dto';
+import { assertReportDateRange, reportCalendarRange } from '../modules/reports/domain/calendar';
 import { UpdateRoleDto } from '../modules/security/roles/presentation/dto';
 import { CreateUserDto,UpdateUserDto } from '../modules/security/users/presentation/dto';
 import { csv } from '../shared/domain/csv';
@@ -59,4 +60,21 @@ test('Datos rechazados antes de superar límites de PostgreSQL', async () => {
   const errors = await validate(plainToInstance(CreateUserDto, { ...valid, nombre: 'X'.repeat(101), telefono: '7'.repeat(31), ci: '1'.repeat(21), domicilio: 'X'.repeat(256) }));
   assert.deepEqual(errors.map(error => error.property).sort(), ['ci', 'domicilio', 'nombre', 'telefono']);
   assert.ok((await validate(plainToInstance(CreateUserDto, { ...valid, contrasena: 'Abcde123 ' }))).length);
+});
+
+test('Reportes (CU14) validan rango coherente y períodos calendario UTC-04:00', () => {
+  assert.doesNotThrow(() => assertReportDateRange('2026-10-01', '2026-10-31'));
+  assert.throws(() => assertReportDateRange('2026-11-02', '2026-11-01'));
+  assert.deepEqual(reportCalendarRange('semana', new Date('2026-10-05T02:00:00Z')), {
+    desde: '2026-09-28',
+    hasta: '2026-10-04',
+  });
+  assert.deepEqual(reportCalendarRange('mes', new Date('2026-11-01T02:00:00Z')), {
+    desde: '2026-10-01',
+    hasta: '2026-10-31',
+  });
+  assert.deepEqual(reportCalendarRange('ano', new Date('2027-01-01T02:00:00Z')), {
+    desde: '2026-01-01',
+    hasta: '2026-12-31',
+  });
 });

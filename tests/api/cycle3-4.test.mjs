@@ -173,10 +173,46 @@ test('Ciclos 3 y 4: integración HTTP integral con PostgreSQL', { timeout: 120_0
     assert.equal(fetchedDispenser.id, dispenserId);
     assert.ok(Array.isArray(fetchedDispenser.mangueras));
     assert.ok(fetchedDispenser.mangueras.some(m => m.id === hoseId));
+
+    // 4. Crear Dispensador con mangueras embebidas (flujo completo CU7 UML)
+    const dispenserWithHoses = expected(
+      await asu.request('POST', '/dispensadores', {
+        ubicacion: `Isla Sur ${timestamp.toString().slice(-4)}`,
+        capacidadMaxima: 150,
+        idSucursal: branchId,
+        mangueras: [{ numero: 1, lado: 'B', color: 'VERDE', idCombustible: testFuelId }],
+      }),
+      201
+    );
+    assert.equal(dispenserWithHoses.mangueras.length, 1);
   });
 
   await t.test('CU12: Gestión de Descuentos y Promociones', async () => {
     const timestamp = Date.now();
+    // 0. Validar reglas de dominio CU12 (porcentaje <= 100 y rango de fechas válido)
+    expected(
+      await asu.request('POST', '/descuentos', {
+        nombre: `Promo Inválida Pct ${timestamp}`,
+        tipo: 'PORCENTAJE',
+        valor: 150,
+        activo: true,
+        idSucursal: branchId,
+      }),
+      400
+    );
+    expected(
+      await asu.request('POST', '/descuentos', {
+        nombre: `Promo Inválida Fechas ${timestamp}`,
+        tipo: 'MONTO_FIJO',
+        valor: 10,
+        fechaInicio: '2026-12-31',
+        fechaFin: '2026-01-01',
+        activo: true,
+        idSucursal: branchId,
+      }),
+      400
+    );
+
     // 1. Crear Descuento porcentual
     const newDiscount = expected(
       await asu.request('POST', '/descuentos', {
@@ -231,6 +267,27 @@ test('Ciclos 3 y 4: integración HTTP integral con PostgreSQL', { timeout: 120_0
       200
     );
     assert.equal(approved.estado, 'APROBADA');
+
+    // 3. Modificar y anular orden pendiente (CU9 modificar/eliminar UML)
+    const draftOrder = expected(
+      await asu.request('POST', '/ordenes-compra', {
+        codigo: `ORD-TMP-${timestamp}`,
+        motivo: 'Borrador temporal',
+        idSucursal: branchId,
+        idProveedor: providerId,
+        detalles: [{ idProducto: testProductId, cantidad: 5 }],
+      }),
+      201
+    );
+    const updatedOrder = expected(
+      await asu.request('PATCH', `/ordenes-compra/${draftOrder.id}`, {
+        motivo: 'Borrador actualizado antes de anular',
+      }),
+      200
+    );
+    assert.equal(updatedOrder.motivo, 'Borrador actualizado antes de anular');
+    const deletedOrder = expected(await asu.request('DELETE', `/ordenes-compra/${draftOrder.id}`), 200);
+    assert.equal(deletedOrder.estado, 'ANULADA');
   });
 
   await t.test('CU10: Registro de Compras, Lotes y Trigger de Stock', async () => {
@@ -279,6 +336,9 @@ test('Ciclos 3 y 4: integración HTTP integral con PostgreSQL', { timeout: 120_0
     const batches = expected(await asu.request('GET', `/compras/lotes?productoId=${testProductId}`), 200);
     assert.ok(Array.isArray(batches.items));
     assert.ok(batches.items.some(b => b.codigoLote === `LOT-${timestamp}`));
+
+    // 5. Verificar bloqueo de eliminación de proveedor con dependencias (CU13)
+    expected(await asu.request('DELETE', `/proveedores/${providerId}`), 409);
   });
 
   await t.test('CU19: Salidas de Productos por Mermas/Vencimiento', async () => {
@@ -286,6 +346,16 @@ test('Ciclos 3 y 4: integración HTTP integral con PostgreSQL', { timeout: 120_0
     const productBefore = expected(await asu.request('GET', `/productos`), 200);
     const prodBefore = productBefore.find(p => p.id === testProductId);
     const stockAntes = Number(prodBefore.stock);
+
+    // 0. Validar rechazo ante stock insuficiente (CU19 alt stock)
+    expected(
+      await asu.request('POST', '/inventario/salidas', {
+        motivo: 'Salida imposible por exceso',
+        cantidad: stockAntes + 9999,
+        idProducto: testProductId,
+      }),
+      409
+    );
 
     // 1. Registrar salida
     const exit = expected(
@@ -302,6 +372,22 @@ test('Ciclos 3 y 4: integración HTTP integral con PostgreSQL', { timeout: 120_0
     const productAfter = expected(await asu.request('GET', `/productos`), 200);
     const prodAfter = productAfter.find(p => p.id === testProductId);
     assert.equal(Number(prodAfter.stock), stockAntes - 2, 'La salida debe decrementar el stock');
+
+    // 3. Registrar segunda salida temporal y revertirla verificando restitución
+    const tempExit = expected(
+      await asu.request('POST', '/inventario/salidas', {
+        motivo: 'Salida de prueba para reversión',
+        cantidad: 1,
+        idProducto: testProductId,
+      }),
+      201
+    );
+    const revertedExit = expected(await asu.request('POST', `/inventario/salidas/${tempExit.id}/revertir`), 200);
+    assert.equal(revertedExit.estado, 'REVERSA');
+    assert.equal(revertedExit.referenciaReversion, tempExit.id);
+    const productAfterRevert = expected(await asu.request('GET', `/productos`), 200);
+    const prodAfterRevert = productAfterRevert.find(p => p.id === testProductId);
+    assert.equal(Number(prodAfterRevert.stock), stockAntes - 2, 'La reversión debe restituir la unidad');
   });
 
   await t.test('CU11: Ventas en Punto de Venta, B-SISA y Trigger de Stock Venta', async () => {
@@ -345,6 +431,8 @@ test('Ciclos 3 y 4: integración HTTP integral con PostgreSQL', { timeout: 120_0
     );
     assert.ok(sale.id);
     assert.ok(sale.codigo);
+    assert.equal(sale.estado, 'EMITIDA');
+    assert.ok(Number(sale.montoCambio) > 100, 'El descuento del 5% debe reflejarse en el total y cambio');
     saleId = sale.id;
 
     // 2. Verificar que el trigger trg_actualizar_stock_venta decrementó el stock en 1
@@ -352,14 +440,68 @@ test('Ciclos 3 y 4: integración HTTP integral con PostgreSQL', { timeout: 120_0
     const prodAfter = productAfter.find(p => p.id === testProductId);
     assert.equal(Number(prodAfter.stock), stockAntes - 1, 'El trigger trg_actualizar_stock_venta debe haber decrementado el stock');
 
-    // 3. Obtener detalle de venta
+    // 3. Rechazar venta con stock insuficiente y probar anulación con restitución
+    expected(
+      await asu.request('POST', '/ventas', {
+        nombreCliente: 'Cliente Exceso',
+        nit: '9999999',
+        placa: '0000-XXX',
+        metodoPago: 'EFECTIVO',
+        montoPagado: 100000,
+        idSucursal: branchId,
+        detalles: [
+          {
+            tipo: 'TIENDA',
+            idProducto: testProductId,
+            nombreItem: 'Aceite Exceso',
+            cantidad: stockAntes + 9999,
+            precio: 45.0,
+          },
+        ],
+      }),
+      409
+    );
+
+    const tempSale = expected(
+      await asu.request('POST', '/ventas', {
+        nombreCliente: 'Cliente Anulacion',
+        nit: '111222333',
+        placa: '1234-XYZ',
+        metodoPago: 'EFECTIVO',
+        montoPagado: 50.0,
+        idSucursal: branchId,
+        detalles: [
+          {
+            tipo: 'TIENDA',
+            idProducto: testProductId,
+            nombreItem: 'Aceite Temporal',
+            cantidad: 1,
+            precio: 45.0,
+          },
+        ],
+      }),
+      201
+    );
+    const annulled = expected(await asu.request('POST', `/ventas/${tempSale.id}/anular`), 200);
+    assert.equal(annulled.estado, 'ANULADA');
+    const productAfterAnnul = expected(await asu.request('GET', `/productos`), 200);
+    const prodAfterAnnul = productAfterAnnul.find(p => p.id === testProductId);
+    assert.equal(Number(prodAfterAnnul.stock), stockAntes - 1, 'La anulación debe restituir el stock');
+
+    // 4. Obtener detalle de venta
     const fetchedSale = expected(await asu.request('GET', `/ventas/${saleId}`), 200);
     assert.equal(fetchedSale.id, saleId);
     assert.equal(fetchedSale.placa, '3849-ABC');
     assert.equal(fetchedSale.estadoBSisa, true);
   });
 
-  await t.test('CU18: Notificaciones de Stock Mínimo', async () => {
+  await t.test('CU18: Notificaciones de Stock Mínimo y Recuperación de Contraseña', async () => {
+    // 0. Alias UML de recuperación de contraseña (CU18)
+    expected(
+      await asu.request('POST', '/auth/password-recovery', { correo: credentials.correo }),
+      200
+    );
+
     // 1. Consultar conteo de notificaciones no leídas
     const countResult = expected(await asu.request('GET', '/inventario/notificaciones/conteo-no-leidas'), 200);
     assert.ok(typeof countResult.noLeidas === 'number');
@@ -410,7 +552,11 @@ test('Ciclos 3 y 4: integración HTTP integral con PostgreSQL', { timeout: 120_0
     const customersReport = expected(await asu.request('GET', `/reportes/clientes?limit=10`), 200);
     assert.ok(Array.isArray(customersReport));
 
-    // 8. Exportar CSV
+    // 8. Validar rechazo de rango inválido y filtro calendario en reportes (CU14)
+    expected(await asu.request('GET', '/reportes/ventas?desde=2026-12-31&hasta=2026-01-01'), 400);
+    expected(await asu.request('GET', `/reportes/ventas?sucursalId=${branchId}&periodo=mes`), 200);
+
+    // 9. Exportar CSV
     const csvResponse = await asu.request('GET', '/reportes/exportar/csv?tipo=ventas');
     assert.equal(csvResponse.status, 200);
     assert.ok(csvResponse.text.includes('Codigo') || csvResponse.text.includes('Fecha'));
