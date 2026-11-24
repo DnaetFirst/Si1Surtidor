@@ -7,6 +7,8 @@
 .search-field svg { position: absolute; left: 8px; color: #99a1af; pointer-events: none; }
 .search-field input { width: 100%; padding-left: 40px; font-weight: 300; }
 input, select, textarea { display: block; background: white; color: #171717; border: 1px solid #dedee2; border-radius: 8px; min-height: 40px; padding: 8px 12px; min-width: 0; font-size: 13px; transition: border-color .15s; }
+.field select, .table-scroll select { width: 100%; max-width: 100%; background-color: #ffffff; color: #171717; }
+select option { background-color: #ffffff; color: #171717; }
 input::placeholder, textarea::placeholder { color: #94949c; font-weight: 300; }
 input:hover:not(:disabled), select:hover:not(:disabled), textarea:hover:not(:disabled) { border-color: #b8b8c0; }
 input:disabled, select:disabled, textarea:disabled { color: #62626b; background: #fafafa; opacity: 1; }
@@ -33,7 +35,7 @@ tbody tr:hover { background: #00000001; }
 .row-menu { position: static; display: inline-block; }
 .row-menu summary { list-style: none; cursor: pointer; }
 .row-menu summary::-webkit-details-marker { display: none; }
-.row-dropdown { position: fixed; inset: auto; z-index: 50; width: 192px; max-width: calc(100vw - 32px); max-height: calc(100dvh - 32px); height: auto; overflow-y: auto; overscroll-behavior: contain; background: white; border: 1px solid var(--border); border-radius: 8px; padding: 8px; box-shadow: 0 8px 24px #00000015; text-align: left; }
+.row-dropdown { position: fixed; inset: auto; z-index: 1200; width: 192px; max-width: calc(100vw - 32px); max-height: calc(100dvh - 32px); height: auto; overflow-y: auto; overscroll-behavior: contain; background: white; border: 1px solid var(--border); border-radius: 8px; padding: 8px; box-shadow: 0 8px 24px #00000015; text-align: left; }
 .row-dropdown a, .row-dropdown button, .menu-note { display: block; width: 100%; padding: 8px; min-height: 40px; background: transparent; border: 0; border-radius: 8px; text-align: left; font-size: 13px; overflow-wrap: anywhere; }
 .row-dropdown a:hover, .row-dropdown button:hover { background: #f3f3f5; }
 .menu-note { color: var(--muted); }
@@ -105,7 +107,14 @@ fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 .alert > svg { margin-top: 1px; }
 .alert > span { flex: 1; }
 .alert.error { border-color: #edcec9; color: #913e33; background: #fff7f5; }
-.toast { position: fixed; right: 24px; bottom: 24px; z-index: 60; max-width: min(480px, calc(100vw - 48px)); display: flex; align-items: center; gap: 16px; border: 1px solid #c8d9cd; border-radius: 8px; background: #fff; color: #385440; box-shadow: 0 8px 32px #00000015; padding: 8px 16px; }
+.toast { position: fixed; right: 24px; bottom: 24px; z-index: 1100; max-width: min(480px, calc(100vw - 48px)); display: flex; align-items: center; gap: 16px; border: 1px solid #c8d9cd; border-radius: 8px; background: #fff; color: #385440; box-shadow: 0 8px 32px #00000015; padding: 8px 16px; }
+.responsive-split { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; }
+.responsive-split-2-1 { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.responsive-split-1-2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 20px; align-items: start; }
+.responsive-split-sidebar { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 20px; align-items: start; }
+.responsive-inline-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.responsive-line-dispenser { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 2fr) 40px; gap: 12px; align-items: end; }
+.responsive-line-order { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 1.5fr) 40px; gap: 12px; align-items: end; }
 .loading { padding: 64px 24px; display: flex; align-items: center; justify-content: center; gap: 16px; color: var(--muted); }
 .initial-loading { height: 100vh; display: grid; place-items: center; background: white; }
 .spin { animation: spin 1s linear infinite; }

@@ -16,6 +16,12 @@
   .audit-toolbar { align-items: flex-start; flex-wrap: wrap; }
   .audit-toolbar > .actions { margin-left: auto; flex-wrap: wrap; }
 }
+@media (max-width: 960px) {
+  .responsive-split, .responsive-split-2-1, .responsive-split-1-2, .responsive-split-sidebar { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+  .responsive-inline-2, .responsive-line-dispenser, .responsive-line-order { grid-template-columns: minmax(0, 1fr); }
+}
 @media (max-width: 767px) {
   :root { --sidebar: 288px; }
   body { font-size: 14px; }

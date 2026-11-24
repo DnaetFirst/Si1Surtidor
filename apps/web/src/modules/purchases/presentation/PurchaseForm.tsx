@@ -6,7 +6,7 @@ import { setNotice, useAppDispatch } from '../../security/auth/application/sessi
 import { Card, FormTop } from '../../../shared/presentation/layout';
 import { ErrorBox } from '../../../shared/presentation/feedback';
 import { Field } from '../../../shared/presentation/forms';
-import { useBranches } from '../../enterprise/branches/application/use-branches';
+import { useBranchOptions } from '../../enterprise/branches/application/use-branches';
 import { useInventoryApi } from '../../inventory/application/repository-context';
 import { Product } from '../../inventory/domain/models';
 import { usePurchasesApi } from '../application/repository-context';
@@ -26,14 +26,14 @@ export function PurchaseForm() {
 
   const api = usePurchasesApi();
   const inventoryApi = useInventoryApi();
-  const branchesState = useBranches();
+  const { data: branchesData } = useBranchOptions();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
 
   const [selectedOrderId, setSelectedOrderId] = useState<number | ''>(
     defaultOrderId ? Number(defaultOrderId) : ''
   );
-  const [idSucursal, setIdSucursal] = useState<number | ''>(1);
+  const [idSucursal, setIdSucursal] = useState<number | ''>('');
   const [idProveedor, setIdProveedor] = useState<number | ''>('');
   const [motivo, setMotivo] = useState('');
   const [codigo, setCodigo] = useState('');
@@ -50,6 +50,12 @@ export function PurchaseForm() {
   );
   const { data: providersData } = useSWR<{ items: Provider[] }>(api.listProvidersKey('', 'true', 1));
   const { data: productsData } = useSWR<Product[]>(inventoryApi.listProductsKey());
+
+  useEffect(() => {
+    if (!selectedOrderId && branchesData?.length && (!idSucursal || !branchesData.some(b => b.id === Number(idSucursal)))) {
+      setIdSucursal(branchesData[0].id);
+    }
+  }, [selectedOrderId, branchesData, idSucursal]);
 
   // If order selected, load its full details
   const { data: orderDetail } = useSWR<PurchaseOrder>(
@@ -144,7 +150,7 @@ export function PurchaseForm() {
       />
       <ErrorBox error={error} />
 
-      <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', gap: '20px' }}>
+      <div className="responsive-split-sidebar">
         {/* Left card: Detalles de la compra */}
         <Card title="Detalles de la compra" subtitle="Seleccione orden de compra o ingrese proveedor">
           <fieldset className="stack" disabled={saving}>
@@ -166,9 +172,10 @@ export function PurchaseForm() {
               <select
                 required
                 value={idSucursal}
-                onChange={e => setIdSucursal(Number(e.target.value))}
+                onChange={e => setIdSucursal(e.target.value === '' ? '' : Number(e.target.value))}
               >
-                {(branchesState.data?.items || []).map(b => (
+                {!(branchesData || []).length && <option value="">Cargando sucursales...</option>}
+                {(branchesData || []).map(b => (
                   <option key={b.id} value={b.id}>
                     {b.nombre}
                   </option>

@@ -2,11 +2,11 @@ import { Plus, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import useSWR from 'swr';
-import { setNotice, useAppDispatch, useSession } from '../../security/auth/application/session';
+import { setNotice, useAppDispatch } from '../../security/auth/application/session';
 import { Card, FormTop } from '../../../shared/presentation/layout';
 import { ErrorBox, Loading } from '../../../shared/presentation/feedback';
 import { Field } from '../../../shared/presentation/forms';
-import { useBranches } from '../../enterprise/branches/application/use-branches';
+import { useBranchOptions } from '../../enterprise/branches/application/use-branches';
 import { useInventoryApi } from '../../inventory/application/repository-context';
 import { Product } from '../../inventory/domain/models';
 import { usePurchasesApi } from '../application/repository-context';
@@ -22,14 +22,11 @@ export function PurchaseOrderForm() {
   const isEditing = Boolean(id);
   const api = usePurchasesApi();
   const inventoryApi = useInventoryApi();
-  const branchesState = useBranches();
-  const { user } = useSession();
+  const { data: branchesData } = useBranchOptions();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
 
-  const [idSucursal, setIdSucursal] = useState<number | ''>(
-    user?.rol?.codigo === 'GS' ? 1 : 1
-  );
+  const [idSucursal, setIdSucursal] = useState<number | ''>('');
   const [idProveedor, setIdProveedor] = useState<number | ''>('');
   const [motivo, setMotivo] = useState('');
   const [detalles, setDetalles] = useState<OrderItemLine[]>([
@@ -55,6 +52,12 @@ export function PurchaseOrderForm() {
       }
     }
   }, [existing]);
+
+  useEffect(() => {
+    if (!isEditing && branchesData?.length && (!idSucursal || !branchesData.some(b => b.id === Number(idSucursal)))) {
+      setIdSucursal(branchesData[0].id);
+    }
+  }, [isEditing, branchesData, idSucursal]);
 
   if (isEditing && isLoading) return <Loading />;
 
@@ -119,17 +122,17 @@ export function PurchaseOrderForm() {
       />
       <ErrorBox error={error} />
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '20px' }}>
+      <div className="responsive-split-1-2">
         <Card title="Datos de la Orden" subtitle="Parámetros de la solicitud">
           <fieldset className="stack" disabled={saving}>
             <Field label="Sucursal Solicitante *">
               <select
                 required
                 value={idSucursal}
-                onChange={e => setIdSucursal(Number(e.target.value))}
+                onChange={e => setIdSucursal(e.target.value === '' ? '' : Number(e.target.value))}
               >
                 <option value="">Seleccione sucursal...</option>
-                {(branchesState.data?.items || []).map(b => (
+                {(branchesData || []).map(b => (
                   <option key={b.id} value={b.id}>
                     {b.nombre}
                   </option>
@@ -167,11 +170,8 @@ export function PurchaseOrderForm() {
             {detalles.map((d, index) => (
               <div
                 key={index}
+                className="responsive-line-order"
                 style={{
-                  display: 'grid',
-                  gridTemplateColumns: '3fr 1.5fr 40px',
-                  gap: '12px',
-                  alignItems: 'end',
                   padding: '8px',
                   background: '#f8fafc',
                   borderRadius: '8px',

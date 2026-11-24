@@ -3,8 +3,12 @@ import { useNavigate, useParams } from 'react-router-dom';
 import useSWR, { useSWRConfig } from 'swr';
 import { useDebounced } from '../../../../shared/application/use-debounced';
 import { allowed, setNotice, useAppDispatch, useSession } from '../../../security/auth/application/session';
-import { BranchDetail, BranchFormData, BranchPage } from '../domain/models';
+import { Branch, BranchDetail, BranchFormData, BranchPage } from '../domain/models';
 import { useBranchesApi } from './repository-context';
+
+export function useBranchOptions() {
+    return useSWR<Branch[]>('/sucursales');
+}
 
 export function useBranches() {
     const api = useBranchesApi();

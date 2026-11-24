@@ -6,7 +6,7 @@ import { setNotice, useAppDispatch } from '../../security/auth/application/sessi
 import { Card, FormTop } from '../../../shared/presentation/layout';
 import { ErrorBox, Loading } from '../../../shared/presentation/feedback';
 import { Field } from '../../../shared/presentation/forms';
-import { useBranches } from '../../enterprise/branches/application/use-branches';
+import { useBranchOptions } from '../../enterprise/branches/application/use-branches';
 import { useInventoryApi } from '../../inventory/application/repository-context';
 import { Fuel } from '../../inventory/domain/models';
 import { useSalesApi } from '../application/repository-context';
@@ -17,14 +17,14 @@ export function DispenserForm() {
   const isEditing = Boolean(id);
   const api = useSalesApi();
   const inventoryApi = useInventoryApi();
-  const branchesState = useBranches();
+  const { data: branchesData } = useBranchOptions();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
 
   const [ubicacion, setUbicacion] = useState('');
   const [capacidadMaxima, setCapacidadMaxima] = useState(100);
   const [estaActivo, setEstaActivo] = useState(true);
-  const [idSucursal, setIdSucursal] = useState<number | ''>(1);
+  const [idSucursal, setIdSucursal] = useState<number | ''>('');
   const [mangueras, setMangueras] = useState<{ id?: number; nombre: string; idCombustible: number }[]>([
     { nombre: 'Manguera 1', idCombustible: 0 },
   ]);
@@ -55,6 +55,12 @@ export function DispenserForm() {
       }
     }
   }, [existing]);
+
+  useEffect(() => {
+    if (!isEditing && branchesData?.length && (!idSucursal || !branchesData.some(b => b.id === Number(idSucursal)))) {
+      setIdSucursal(branchesData[0].id);
+    }
+  }, [isEditing, branchesData, idSucursal]);
 
   if (isEditing && isLoading) return <Loading />;
 
@@ -140,7 +146,7 @@ export function DispenserForm() {
       />
       <ErrorBox error={error} />
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+      <div className="responsive-split">
         <Card title="Datos del Dispensador" subtitle="Identificación física y ubicación en pista">
           <fieldset className="stack" disabled={saving}>
             <Field label="Ubicación o Identificador *">
@@ -167,9 +173,10 @@ export function DispenserForm() {
               <select
                 required
                 value={idSucursal}
-                onChange={e => setIdSucursal(Number(e.target.value))}
+                onChange={e => setIdSucursal(e.target.value === '' ? '' : Number(e.target.value))}
               >
-                {(branchesState.data?.items || []).map(b => (
+                {!(branchesData || []).length && <option value="">Cargando sucursales...</option>}
+                {(branchesData || []).map(b => (
                   <option key={b.id} value={b.id}>
                     {b.nombre}
                   </option>
@@ -196,11 +203,8 @@ export function DispenserForm() {
             {mangueras.map((m, index) => (
               <div
                 key={index}
+                className="responsive-line-dispenser"
                 style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1.5fr 2fr 40px',
-                  gap: '12px',
-                  alignItems: 'end',
                   padding: '8px',
                   background: '#f8fafc',
                   borderRadius: '8px',

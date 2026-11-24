@@ -1,5 +1,6 @@
 import { AlertTriangle, Bell, Check, X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import useSWR from 'swr';
 import { PageResult } from '../../../shared/domain/pagination';
 import { useInventoryApi } from '../application/repository-context';
@@ -8,7 +9,9 @@ import { ProductNotification } from '../domain/models';
 export function NotificationsDrawer() {
   const api = useInventoryApi();
   const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const drawerRef = useRef<HTMLDivElement>(null);
+  const [panelPos, setPanelPos] = useState<{ top: number; left: number; width: number; maxHeight: number } | null>(null);
 
   const { data: unreadData, mutate: mutateCount } = useSWR<{ noLeidas: number }>(
     '/inventario/notificaciones/conteo-no-leidas',
@@ -20,16 +23,45 @@ export function NotificationsDrawer() {
     open ? api.listNotificationsKey() : null
   );
 
+  const updatePosition = () => {
+    if (!triggerRef.current) return;
+    const anchor = triggerRef.current.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const width = Math.min(380, vw - 24);
+    const left = Math.max(12, Math.min(anchor.right - width, vw - width - 12));
+    const top = Math.min(anchor.bottom + 8, Math.max(12, vh - 200));
+    const maxHeight = Math.max(220, vh - top - 16);
+    setPanelPos({ top, left, width, maxHeight });
+  };
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    updatePosition();
+  }, [open]);
+
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (drawerRef.current && !drawerRef.current.contains(e.target as Node)) {
+    if (!open) return;
+    const handlePointerDown = (e: PointerEvent) => {
+      const target = e.target as Node;
+      if (!drawerRef.current?.contains(target) && !triggerRef.current?.contains(target)) {
         setOpen(false);
       }
     };
-    if (open) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setOpen(false);
+        triggerRef.current?.focus({ preventScroll: true });
+      }
+    };
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('resize', updatePosition);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('resize', updatePosition);
+    };
   }, [open]);
 
   const handleMarkAsRead = async (id: number) => {
@@ -57,10 +89,12 @@ export function NotificationsDrawer() {
   return (
     <div style={{ position: 'relative' }}>
       <button
+        ref={triggerRef}
         type="button"
         className="icon-button"
         aria-label="Notificaciones"
-        onClick={() => setOpen(!open)}
+        aria-expanded={open}
+        onClick={() => setOpen(v => !v)}
         style={{ position: 'relative' }}
       >
         <Bell size={21} />
@@ -87,25 +121,29 @@ export function NotificationsDrawer() {
         )}
       </button>
 
-      {open && (
-        <div
-          ref={drawerRef}
-          style={{
-            position: 'absolute',
-            top: '40px',
-            right: '0',
-            width: '380px',
-            maxHeight: '520px',
-            backgroundColor: '#ffffff',
-            borderRadius: '16px',
-            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
-            border: '1px solid #e2e8f0',
-            zIndex: 1000,
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-          }}
-        >
+      {open &&
+        createPortal(
+          <div
+            ref={drawerRef}
+            role="dialog"
+            aria-label="Notificaciones"
+            style={{
+              position: 'fixed',
+              top: panelPos?.top ?? 56,
+              left: panelPos?.left ?? 12,
+              width: panelPos?.width ?? 360,
+              maxHeight: Math.min(520, panelPos?.maxHeight ?? 520),
+              backgroundColor: '#ffffff',
+              borderRadius: '16px',
+              boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+              border: '1px solid #e2e8f0',
+              zIndex: 1200,
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+              visibility: panelPos ? 'visible' : 'hidden',
+            }}
+          >
           {/* Header */}
           <div
             style={{
@@ -214,7 +252,8 @@ export function NotificationsDrawer() {
               </div>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

@@ -11,8 +11,19 @@ import { CreateBranchDto, UpdateBranchDto } from './dto';
 export class BranchesController {
     constructor(private readonly service: BranchesService) { }
     @Get()
-    @RequirePermissions('usuarios.gestionar', 'usuarios.ver', 'usuarios.crear', 'usuarios.editar', 'sucursales.gestionar', 'sucursales.ver')
-    @ApiOperation({ summary: 'Sucursales activas para asignación opcional de usuarios.' })
+    @RequirePermissions(
+        'usuarios.gestionar', 'usuarios.ver', 'usuarios.crear', 'usuarios.editar',
+        'sucursales.gestionar', 'sucursales.ver',
+        'ventas.gestionar', 'ventas.ver', 'ventas.crear',
+        'dispensadores.gestionar', 'dispensadores.ver', 'dispensadores.crear', 'dispensadores.editar',
+        'descuentos.gestionar', 'descuentos.ver', 'descuentos.crear', 'descuentos.editar',
+        'ordenes.gestionar', 'ordenes.ver', 'ordenes.crear', 'ordenes.editar',
+        'compras.gestionar', 'compras.ver', 'compras.crear',
+        'productos.gestionar', 'productos.ver', 'productos.crear', 'productos.editar',
+        'salidas.gestionar', 'salidas.ver', 'salidas.crear',
+        'reportes.gestionar', 'reportes.ver'
+    )
+    @ApiOperation({ summary: 'Sucursales activas para asignación y selectores operativos.' })
     obtener() { return this.service.branches(); }
     @Get('gestion')
     @RequirePermissions('sucursales.gestionar', 'sucursales.ver')

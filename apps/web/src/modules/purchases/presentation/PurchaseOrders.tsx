@@ -219,10 +219,11 @@ export function PurchaseOrders() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 1000,
+            padding: '16px',
+            zIndex: 1400,
           }}
         >
-          <div style={{ background: '#ffffff', borderRadius: '12px', padding: '24px', maxWidth: '600px', width: '90%' }}>
+          <div style={{ background: '#ffffff', borderRadius: '12px', padding: '24px', maxWidth: '600px', width: '100%', maxHeight: '90dvh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h3 style={{ margin: 0 }}>Orden {selectedOrder.codigo}</h3>
               {getStatusBadge(selectedOrder.estado)}

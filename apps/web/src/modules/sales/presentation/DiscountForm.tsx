@@ -5,7 +5,7 @@ import { setNotice, useAppDispatch } from '../../security/auth/application/sessi
 import { Card, FormTop } from '../../../shared/presentation/layout';
 import { ErrorBox, Loading } from '../../../shared/presentation/feedback';
 import { Field } from '../../../shared/presentation/forms';
-import { useBranches } from '../../enterprise/branches/application/use-branches';
+import { useBranchOptions } from '../../enterprise/branches/application/use-branches';
 import { useSalesApi } from '../application/repository-context';
 import { Discount } from '../domain/models';
 
@@ -13,7 +13,7 @@ export function DiscountForm() {
   const { id } = useParams<{ id?: string }>();
   const isEditing = Boolean(id);
   const api = useSalesApi();
-  const branchesState = useBranches();
+  const { data: branchesData } = useBranchOptions();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
 
@@ -97,11 +97,11 @@ export function DiscountForm() {
       />
       <ErrorBox error={error} />
 
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px' }}>
+      <div className="responsive-split-2-1">
         {/* Left column: Detalles del descuento */}
         <Card title="Detalles del descuento" subtitle="Ingrese los detalles del descuento">
           <fieldset className="stack" disabled={saving}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div className="responsive-inline-2">
               <Field label="Nombre">
                 <input
                   required
@@ -123,7 +123,7 @@ export function DiscountForm() {
               </Field>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div className="responsive-inline-2">
               <Field label={tipo === 'PORCENTAJE' ? 'Porcentaje (%)' : 'Monto Fijo (Bs.)'}>
                 <input
                   required
@@ -145,7 +145,7 @@ export function DiscountForm() {
               </Field>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div className="responsive-inline-2">
               <Field label="Fecha de inicio (Opcional)">
                 <input
                   type="date"
@@ -195,7 +195,7 @@ export function DiscountForm() {
                 onChange={e => setIdSucursal(e.target.value === '' ? '' : Number(e.target.value))}
               >
                 <option value="">Todas las sucursales</option>
-                {(branchesState.data?.items || []).map(b => (
+                {(branchesData || []).map(b => (
                   <option key={b.id} value={b.id}>
                     {b.nombre}
                   </option>

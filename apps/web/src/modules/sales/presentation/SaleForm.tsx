@@ -6,7 +6,7 @@ import { setNotice, useAppDispatch } from '../../security/auth/application/sessi
 import { Card, FormTop } from '../../../shared/presentation/layout';
 import { ErrorBox } from '../../../shared/presentation/feedback';
 import { Field } from '../../../shared/presentation/forms';
-import { useBranches } from '../../enterprise/branches/application/use-branches';
+import { useBranchOptions } from '../../enterprise/branches/application/use-branches';
 import { useInventoryApi } from '../../inventory/application/repository-context';
 import { Product } from '../../inventory/domain/models';
 import { useSalesApi } from '../application/repository-context';
@@ -26,11 +26,11 @@ interface SaleItemLine {
 export function SaleForm() {
   const api = useSalesApi();
   const inventoryApi = useInventoryApi();
-  const branchesState = useBranches();
+  const { data: branchesData } = useBranchOptions();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
 
-  const [idSucursal, setIdSucursal] = useState<number | ''>(1);
+  const [idSucursal, setIdSucursal] = useState<number | ''>('');
   const [nombreCliente, setNombreCliente] = useState('Cliente Casual');
   const [nit, setNit] = useState('0');
   const [placa, setPlaca] = useState('');
@@ -47,11 +47,17 @@ export function SaleForm() {
   const [selectedHoseId, setSelectedHoseId] = useState<number | ''>('');
   const [selectedProductId, setSelectedProductId] = useState<number | ''>('');
   const [inputQuantity, setInputQuantity] = useState<number | ''>(10);
-  const [inputPrice, setInputPrice] = useState<number | ''>(3.74);
+  const [inputPrice, setInputPrice] = useState<number | ''>(6.96);
   const [selectedDiscountId, setSelectedDiscountId] = useState<number | ''>('');
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<unknown>(null);
+
+  useEffect(() => {
+    if (branchesData?.length && (!idSucursal || !branchesData.some(b => b.id === Number(idSucursal)))) {
+      setIdSucursal(branchesData[0].id);
+    }
+  }, [branchesData, idSucursal]);
 
   const { data: dispensersData } = useSWR<{ items: Dispenser[] }>(
     api.listDispensersKey('', idSucursal ? Number(idSucursal) : undefined, 1)
@@ -200,12 +206,12 @@ export function SaleForm() {
       />
       <ErrorBox error={error} />
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+      <div className="responsive-split">
         {/* Left Column: Cliente y B-SISA */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', minWidth: 0 }}>
           <Card title="Datos del Cliente y Vehículo" subtitle="Control B-SISA y facturación">
             <fieldset className="stack" disabled={saving}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div className="responsive-inline-2">
                 <Field label="Placa del Vehículo">
                   <input
                     maxLength={20}
@@ -270,10 +276,17 @@ export function SaleForm() {
 
               <Field label="Sucursal">
                 <select
+                  required
                   value={idSucursal}
-                  onChange={e => setIdSucursal(Number(e.target.value))}
+                  onChange={e => {
+                    setIdSucursal(e.target.value === '' ? '' : Number(e.target.value));
+                    setSelectedDispenserId('');
+                    setSelectedHoseId('');
+                    setSelectedDiscountId('');
+                  }}
                 >
-                  {(branchesState.data?.items || []).map(b => (
+                  {!(branchesData || []).length && <option value="">Cargando sucursales...</option>}
+                  {(branchesData || []).map(b => (
                     <option key={b.id} value={b.id}>
                       {b.nombre}
                     </option>
@@ -285,12 +298,12 @@ export function SaleForm() {
 
           {/* Builder Box */}
           <Card title="Agregar Despacho o Producto">
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '16px' }}>
               <button
                 type="button"
                 className="button"
                 style={{
-                  flex: 1,
+                  flex: '1 1 150px',
                   background: itemType === 'COMBUSTIBLE' ? '#0f172a' : '#f8fafc',
                   color: itemType === 'COMBUSTIBLE' ? '#ffffff' : '#0f172a',
                 }}
@@ -302,7 +315,7 @@ export function SaleForm() {
                 type="button"
                 className="button"
                 style={{
-                  flex: 1,
+                  flex: '1 1 150px',
                   background: itemType === 'TIENDA' ? '#0f172a' : '#f8fafc',
                   color: itemType === 'TIENDA' ? '#ffffff' : '#0f172a',
                 }}
@@ -314,11 +327,11 @@ export function SaleForm() {
 
             {itemType === 'COMBUSTIBLE' ? (
               <div className="stack">
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div className="responsive-inline-2">
                   <Field label="Dispensador">
                     <select
                       value={selectedDispenserId}
-                      onChange={e => setSelectedDispenserId(Number(e.target.value))}
+                      onChange={e => setSelectedDispenserId(e.target.value === '' ? '' : Number(e.target.value))}
                     >
                       <option value="">Seleccione dispensador...</option>
                       {(dispensersData?.items || []).map(d => (
@@ -332,7 +345,7 @@ export function SaleForm() {
                   <Field label="Manguera">
                     <select
                       value={selectedHoseId}
-                      onChange={e => setSelectedHoseId(Number(e.target.value))}
+                      onChange={e => setSelectedHoseId(e.target.value === '' ? '' : Number(e.target.value))}
                     >
                       <option value="">Seleccione manguera...</option>
                       {(
@@ -346,7 +359,7 @@ export function SaleForm() {
                   </Field>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div className="responsive-inline-2">
                   <Field label="Litros Despachados">
                     <input
                       type="number"
@@ -372,7 +385,7 @@ export function SaleForm() {
                 <Field label="Producto de Tienda">
                   <select
                     value={selectedProductId}
-                    onChange={e => setSelectedProductId(Number(e.target.value))}
+                    onChange={e => setSelectedProductId(e.target.value === '' ? '' : Number(e.target.value))}
                   >
                     <option value="">Seleccione producto...</option>
                     {(productsData || []).map(p => (
@@ -383,7 +396,7 @@ export function SaleForm() {
                   </select>
                 </Field>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div className="responsive-inline-2">
                   <Field label="Cantidad">
                     <input
                       type="number"
@@ -433,7 +446,7 @@ export function SaleForm() {
         </div>
 
         {/* Right Column: Ticket Summary & Payment */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', minWidth: 0 }}>
           <Card title="Ticket de Venta" subtitle="Detalle de ítems despachados">
             <div style={{ minHeight: '160px', maxHeight: '240px', overflowY: 'auto' }}>
               <table style={{ width: '100%', fontSize: '0.9rem' }}>
@@ -511,7 +524,7 @@ export function SaleForm() {
                 </select>
               </Field>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div className="responsive-inline-2">
                 <Field label="Monto Recibido (Bs)">
                   <input
                     type="number"

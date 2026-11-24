@@ -138,7 +138,7 @@ export function ProviderDetail() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '20px' }}>
+      <div className="responsive-split-sidebar">
         {/* Left Column: Provider Info Card */}
         <Card>
           <div style={{ marginBottom: '16px' }}>
@@ -337,10 +337,11 @@ export function ProviderDetail() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 1000,
+            padding: '16px',
+            zIndex: 1400,
           }}
         >
-          <div style={{ background: '#ffffff', borderRadius: '12px', padding: '24px', maxWidth: '480px', width: '90%' }}>
+          <div style={{ background: '#ffffff', borderRadius: '12px', padding: '24px', maxWidth: '480px', width: '100%', maxHeight: '90dvh', overflowY: 'auto' }}>
             <h3 style={{ marginTop: 0, marginBottom: '16px' }}>Vincular Producto al Proveedor</h3>
             <form onSubmit={handleLinkProduct} className="stack">
               <Field label="Producto del Catálogo">

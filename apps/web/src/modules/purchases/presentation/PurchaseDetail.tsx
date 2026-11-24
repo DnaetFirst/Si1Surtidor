@@ -66,7 +66,7 @@ export function PurchaseDetail() {
         )}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '20px' }}>
+      <div className="responsive-split-sidebar">
         {/* Left column */}
         <Card>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>

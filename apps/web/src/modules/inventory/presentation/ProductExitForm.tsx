@@ -68,7 +68,7 @@ export function ProductExitForm() {
               <select
                 required
                 value={idProducto}
-                onChange={e => setIdProducto(Number(e.target.value))}
+                onChange={e => setIdProducto(e.target.value === '' ? '' : Number(e.target.value))}
               >
                 <option value="">Seleccione un producto...</option>
                 {(products || []).map(p => (

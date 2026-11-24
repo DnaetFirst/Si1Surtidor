@@ -1,11 +1,11 @@
-import { FileDown, Filter, MoreHorizontal, Plus, Fuel, Package, Pencil, Trash2 } from 'lucide-react';
-import { useState, useRef, useEffect } from 'react';
+import { FileDown, Filter, Plus, Fuel, Package, Pencil, Trash2 } from 'lucide-react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import useSWR from 'swr';
 import { useInventoryApi } from '../application/repository-context';
 import { Product } from '../domain/models';
 import { setNotice, useAppDispatch } from '../../security/auth/application/session';
-import { Empty, Loading, ErrorBox } from '../../../shared/presentation/index';
+import { Empty, Loading, ErrorBox, RowMenu } from '../../../shared/presentation/index';
 
 export function Products() {
   const api = useInventoryApi();
@@ -16,20 +16,8 @@ export function Products() {
   const [activeTab, setActiveTab] = useState<'combustible' | 'otro'>('combustible');
   const [filterText, setFilterText] = useState('');
   const [showFilter, setShowFilter] = useState(false);
-  const [activeMenuId, setActiveMenuId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [actionError, setActionError] = useState<unknown>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleOutsideClick = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setActiveMenuId(null);
-      }
-    };
-    document.addEventListener('mousedown', handleOutsideClick);
-    return () => document.removeEventListener('mousedown', handleOutsideClick);
-  }, []);
 
   const isFuelProduct = (p: Product) => {
     const nameLower = p.nombre.toLowerCase();
@@ -56,7 +44,6 @@ export function Products() {
       setActionError(err);
     } finally {
       setDeletingId(null);
-      setActiveMenuId(null);
     }
   };
 
@@ -222,8 +209,8 @@ export function Products() {
       <ErrorBox error={error || actionError} />
 
       {/* Main Card */}
-      <div style={{ background: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
-        <div style={{ padding: '20px 24px', borderBottom: '1px solid #f1f5f9' }}>
+      <div style={{ background: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+        <div style={{ padding: '20px 24px', borderBottom: '1px solid #f1f5f9', borderTopLeftRadius: '12px', borderTopRightRadius: '12px' }}>
           <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: '#0f172a' }}>
             {activeTab === 'combustible' ? 'Combustible' : 'Otro producto'}
           </h2>
@@ -257,7 +244,6 @@ export function Products() {
               </thead>
               <tbody>
                 {filteredProducts.map((p, index) => {
-                  const isMenuOpen = activeMenuId === p.id;
                   const formattedDate = new Date(p.createdAt).toLocaleDateString('es-BO', {
                     year: 'numeric',
                     month: '2-digit',
@@ -318,90 +304,20 @@ export function Products() {
                       <td style={{ padding: '12px 16px', color: '#64748b', whiteSpace: 'nowrap' }}>
                         {formattedDate}
                       </td>
-                      <td style={{ padding: '12px 16px', textAlign: 'center', position: 'relative' }}>
-                        <button
-                          type="button"
-                          onClick={() => setActiveMenuId(isMenuOpen ? null : p.id)}
-                          style={{
-                            background: 'transparent',
-                            border: 'none',
-                            cursor: 'pointer',
-                            padding: '6px',
-                            borderRadius: '6px',
-                            color: '#64748b',
-                          }}
-                          aria-label="Acciones"
-                        >
-                          <MoreHorizontal size={18} />
-                        </button>
-
-                        {isMenuOpen && (
-                          <div
-                            ref={menuRef}
-                            style={{
-                              position: 'absolute',
-                              right: '16px',
-                              top: '40px',
-                              background: '#ffffff',
-                              borderRadius: '8px',
-                              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                              border: '1px solid #e2e8f0',
-                              zIndex: 100,
-                              minWidth: '130px',
-                              padding: '4px 0',
-                              textAlign: 'left',
-                            }}
+                      <td className="menu-cell">
+                        <RowMenu label={p.nombre}>
+                          <button type="button" onClick={() => navigate(`/productos/${p.id}/editar`)}>
+                            <Pencil size={14} style={{ marginRight: '6px' }} /> Editar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(p.id)}
+                            disabled={deletingId === p.id}
+                            style={{ color: '#dc2626' }}
                           >
-                            <div style={{ padding: '6px 12px', fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>
-                              Actions
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => navigate(`/productos/${p.id}/editar`)}
-                              style={{
-                                width: '100%',
-                                padding: '8px 12px',
-                                border: 'none',
-                                background: 'transparent',
-                                textAlign: 'left',
-                                fontSize: '13px',
-                                cursor: 'pointer',
-                                color: '#1e293b',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '8px',
-                              }}
-                              onMouseEnter={e => (e.currentTarget.style.background = '#f8fafc')}
-                              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                            >
-                              <Pencil size={14} />
-                              <span>Edit</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDelete(p.id)}
-                              disabled={deletingId === p.id}
-                              style={{
-                                width: '100%',
-                                padding: '8px 12px',
-                                border: 'none',
-                                background: 'transparent',
-                                textAlign: 'left',
-                                fontSize: '13px',
-                                cursor: 'pointer',
-                                color: '#dc2626',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '8px',
-                              }}
-                              onMouseEnter={e => (e.currentTarget.style.background = '#fee2e2')}
-                              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                            >
-                              <Trash2 size={14} />
-                              <span>Delete</span>
-                            </button>
-                          </div>
-                        )}
+                            <Trash2 size={14} style={{ marginRight: '6px' }} /> Eliminar
+                          </button>
+                        </RowMenu>
                       </td>
                     </tr>
                   );
