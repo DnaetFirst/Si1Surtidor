@@ -1,3 +1,4 @@
+import { ParsedVoiceIntent, ReportExportFormat } from './models';
 import {
   AiReportConsultPayload,
   AiReportResponse,
@@ -22,6 +23,7 @@ export interface ReportsApi {
   exportCsvUrl(type: string, from?: string, to?: string, branchId?: number, periodo?: string): string;
   exportExcelUrl(type: string, from?: string, to?: string, branchId?: number, periodo?: string): string;
   exportPdfUrl(type: string, from?: string, to?: string, branchId?: number, periodo?: string): string;
+  downloadReport(format: ReportExportFormat, intent: ParsedVoiceIntent): Promise<void>;
   getVoiceCommands(): Promise<PredefinedVoiceCommand[]>;
   transcribeVoice(data: string, mimeType: string): Promise<{ transcript: string }>;
   consultWithAi(payload: AiReportConsultPayload): Promise<AiReportResponse>;

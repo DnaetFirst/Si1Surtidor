@@ -1,10 +1,11 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
-import { Mic, MicOff, Sparkles, Square, Volume2, X } from 'lucide-react';
+import { Download, Mic, MicOff, Sparkles, Square, Volume2, X } from 'lucide-react';
 import {
   AiReportConsultPayload,
   AiReportResponse,
   ParsedVoiceIntent,
   PredefinedVoiceCommand,
+  ReportExportFormat,
   ReportTabType,
 } from '../domain/models';
 
@@ -37,6 +38,7 @@ interface Props {
   onTranscribe: (data: string, mimeType: string) => Promise<{ transcript: string }>;
   onConsult: (payload: AiReportConsultPayload) => Promise<AiReportResponse>;
   onApplyIntent: (intent: ParsedVoiceIntent) => void;
+  onDownload: (format: ReportExportFormat, intent: ParsedVoiceIntent) => Promise<void>;
 }
 
 const FALLBACK_COMMANDS: PredefinedVoiceCommand[] = [
@@ -111,12 +113,15 @@ export function VoiceAiReportAssistant({
   onTranscribe,
   onConsult,
   onApplyIntent,
+  onDownload,
 }: Props) {
   const [prompt, setPrompt] = useState('');
   const [voicePhase, setVoicePhase] = useState<'idle' | 'requesting' | 'listening' | 'transcribing'>('idle');
   const listening = voicePhase === 'listening';
   const [speakBack, setSpeakBack] = useState(true);
   const [speaking, setSpeaking] = useState(false);
+  const [downloadPending, setDownloadPending] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [voiceNote, setVoiceNote] = useState<string | null>(null);
@@ -164,6 +169,18 @@ export function VoiceAiReportAssistant({
     setSpeaking(false);
   };
 
+  const downloadReport = async (format: ReportExportFormat, intent: ParsedVoiceIntent) => {
+    setDownloadPending(true);
+    setDownloadError(null);
+    try {
+      await onDownload(format, intent);
+    } catch (err) {
+      setDownloadError(err instanceof Error ? err.message : 'No se pudo descargar el reporte.');
+    } finally {
+      setDownloadPending(false);
+    }
+  };
+
   const executeQuery = async (
     queryText: string,
     opts?: { viaVoz?: boolean; forceCurrentView?: boolean },
@@ -171,6 +188,7 @@ export function VoiceAiReportAssistant({
     const clean = queryText.trim();
     if (!clean || loading) return;
     setLoading(true);
+    setDownloadError(null);
     setError(null);
     setVoiceNote(null);
 
@@ -194,6 +212,7 @@ export function VoiceAiReportAssistant({
       const data = await onConsult(payload);
       setResult(data);
       onApplyIntent(data.intent);
+      if (data.intent.formato) void downloadReport(data.intent.formato, data.intent);
       if (speakBack && (opts?.viaVoz || opts?.forceCurrentView === false)) {
         speakText(data.speechText || data.resumenEjecutivo);
       }
@@ -567,7 +586,7 @@ export function VoiceAiReportAssistant({
                   color: result.provider === 'gemini' ? '#1d4ed8' : '#334155',
                 }}
               >
-                {result.provider === 'gemini' ? `Gemini (${result.model})` : `Motor analítico local (${result.model})`}
+                {result.provider === 'gemini' ? `Gemini (${result.model})` : result.provider === 'local-data' ? 'Datos del sistema' : `Motor analítico local (${result.model})`}
               </span>
               <span style={{ fontSize: '0.82rem', color: 'var(--muted)' }}>
                 {result.datasetTitle} · {result.datasetSubtitle}
@@ -629,6 +648,21 @@ export function VoiceAiReportAssistant({
               </div>
             )}
           </div>
+
+          <div role="group" aria-label="Descargar reporte" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '12px' }}>
+            {(['csv', 'excel', 'pdf'] as const).map(format => (
+              <button
+                key={format}
+                className="button"
+                type="button"
+                disabled={loading || downloadPending}
+                onClick={() => void downloadReport(format, result.intent)}
+              >
+                <Download size={14}/> Descargar {format === 'excel' ? 'Excel' : format.toUpperCase()}
+              </button>
+            ))}
+          </div>
+          {downloadError && <p role="alert">{downloadError}</p>}
 
           {result.notaConfiguracion && (
             <div style={{ marginTop: '10px', fontSize: '0.78rem', color: 'var(--muted)' }}>

@@ -114,7 +114,7 @@ export interface PredefinedVoiceCommand {
 
 export interface ParsedVoiceIntent {
   matchedCommandId?: string;
-  tipo: ReportTabType;
+  tipo: ReportTabType | 'sucursales';
   periodo: 'todo' | 'semana' | 'mes' | 'ano';
   desde?: string;
   hasta?: string;
@@ -139,7 +139,7 @@ export interface AiReportResponse {
   hallazgos: string[];
   recomendaciones: string[];
   speechText: string;
-  provider: 'gemini' | 'local-fallback';
+  provider: 'gemini' | 'local-fallback' | 'local-data';
   model: string;
   notaConfiguracion?: string;
   intent: ParsedVoiceIntent;

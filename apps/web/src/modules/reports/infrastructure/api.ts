@@ -1,4 +1,4 @@
-import { send } from '../../../shared/infrastructure/http';
+import { download, send } from '../../../shared/infrastructure/http';
 import {
   AiReportConsultPayload,
   AiReportResponse,
@@ -84,6 +84,17 @@ export const reportsApi: ReportsApi = {
     if (branchId) url += `sucursalId=${branchId}&`;
     if (periodo && periodo !== 'todo') url += `periodo=${periodo}&`;
     return url;
+  },
+
+  downloadReport: (format, intent) => {
+    const urlForFormat = {
+      csv: reportsApi.exportCsvUrl,
+      excel: reportsApi.exportExcelUrl,
+      pdf: reportsApi.exportPdfUrl,
+    };
+    const url = urlForFormat[format](intent.tipo, intent.desde, intent.hasta, intent.sucursalId, intent.periodo);
+    const extension = format === 'excel' ? 'xlsx' : format;
+    return download(url.replace(/^\/api/, ''), `reporte_${intent.tipo}.${extension}`);
   },
 
   getVoiceCommands: () => send<PredefinedVoiceCommand[]>('/reportes/voz/comandos', 'GET'),

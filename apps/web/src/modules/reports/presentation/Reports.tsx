@@ -15,7 +15,7 @@ import { ErrorBox, Loading } from '../../../shared/presentation/feedback';
 import { Field } from '../../../shared/presentation/forms';
 import { useBranchOptions } from '../../enterprise/branches/application/use-branches';
 import { useReportsApi } from '../application/repository-context';
-import { ParsedVoiceIntent, ReportTabType } from '../domain/models';
+import { ParsedVoiceIntent, ReportExportFormat, ReportTabType } from '../domain/models';
 import { VoiceAiReportAssistant } from './VoiceAiReportAssistant';
 import { DashboardSummary } from '../domain/models';
 
@@ -84,27 +84,19 @@ export function Reports() {
     return () => document.removeEventListener('pointerdown', onPointerDown);
   }, [exportMenuOpen]);
 
-  const handleExport = (
-    format: 'csv' | 'excel' | 'pdf',
-    tipo: string,
-    overrideIntent?: ParsedVoiceIntent,
-  ) => {
-    const targetFrom = overrideIntent?.desde ?? desde;
-    const targetTo = overrideIntent?.hasta ?? hasta;
-    const targetBranch = overrideIntent?.sucursalId ?? (idSucursal ? Number(idSucursal) : undefined);
-    const targetPeriodo = overrideIntent?.periodo ?? periodo;
+  const exportUrl = (format: ReportExportFormat, tipo: string, from?: string, to?: string, branch?: number, period?: string) => {
+    if (format === 'excel') return api.exportExcelUrl(tipo, from, to, branch, period);
+    if (format === 'pdf') return api.exportPdfUrl(tipo, from, to, branch, period);
+    return api.exportCsvUrl(tipo, from, to, branch, period);
+  };
 
-    const url =
-      format === 'excel'
-        ? api.exportExcelUrl(tipo, targetFrom, targetTo, targetBranch, targetPeriodo)
-        : format === 'pdf'
-          ? api.exportPdfUrl(tipo, targetFrom, targetTo, targetBranch, targetPeriodo)
-          : api.exportCsvUrl(tipo, targetFrom, targetTo, targetBranch, targetPeriodo);
-    window.open(url, '_blank');
+  const handleExport = (format: ReportExportFormat, tipo: string) => {
+    window.open(exportUrl(format, tipo, desde, hasta, idSucursal || undefined, periodo), '_blank');
   };
 
   const handleApplyVoiceIntent = (intent: ParsedVoiceIntent) => {
-    setActiveTab(intent.tipo as typeof activeTab);
+    if (intent.tipo === 'sucursales') return;
+    setActiveTab(intent.tipo);
     if (intent.desde || intent.hasta) {
       setDesde(intent.desde || '');
       setHasta(intent.hasta || '');
@@ -114,13 +106,7 @@ export function Reports() {
       setHasta('');
       setPeriodo(intent.periodo);
     }
-    if (intent.sucursalId !== undefined) {
-      setIdSucursal(intent.sucursalId);
-    }
-    if (intent.formato) {
-      const exportTipo = intent.tipo === 'resumen' ? 'ventas' : intent.tipo;
-      handleExport(intent.formato, exportTipo, intent);
-    }
+    setIdSucursal(intent.sucursalId ?? '');
   };
 
   const tabs = [
@@ -227,6 +213,7 @@ export function Reports() {
         onTranscribe={(data, mimeType) => api.transcribeVoice(data, mimeType)}
         onConsult={payload => api.consultWithAi(payload)}
         onApplyIntent={handleApplyVoiceIntent}
+        onDownload={api.downloadReport}
       />
 
       {/* KPI Cards Row */}

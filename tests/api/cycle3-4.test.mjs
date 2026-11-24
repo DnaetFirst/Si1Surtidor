@@ -543,6 +543,32 @@ test('Ciclos 3 y 4: integración HTTP integral con PostgreSQL', { timeout: 120_0
     expected(await asu.request('PATCH', `/inventario/notificaciones/${notificationId}/resolver`), 200);
   });
 
+  await t.test('CU14: directorio de sucursales en el asistente y en los tres formatos', async () => {
+    const branches = expected(await asu.request('GET', '/sucursales'), 200);
+    const items = Array.isArray(branches) ? branches : branches.items;
+    assert.ok(items.length > 0);
+
+    const response = expected(await asu.request('POST', '/reportes/ia/consultar', {
+      prompt: 'Dame el nombre de todas nuestras sucursales',
+      sucursalId: branchId,
+    }), 200);
+    assert.equal(response.provider, 'local-data');
+    assert.equal(response.intent.tipo, 'sucursales');
+    assert.equal(response.intent.sucursalId, undefined);
+    for (const { nombre } of items) assert.ok(response.resumenEjecutivo.includes(nombre));
+
+    const formats = { csv: 'text/csv', excel: 'spreadsheetml.sheet', pdf: 'application/pdf' };
+    for (const [format, contentType] of Object.entries(formats)) {
+      const file = await asu.request('GET', `/reportes/exportar/${format}?tipo=sucursales`);
+      assert.equal(file.status, 200);
+      assert.ok(file.headers.get('content-type')?.includes(contentType));
+      assert.match(file.headers.get('content-disposition'), /attachment/);
+      if (format === 'csv') {
+        for (const { nombre } of items) assert.ok(file.text.includes(nombre));
+      }
+    }
+  });
+
   await t.test('CU14: Reportes, Estadísticas y Exportación CSV', async () => {
     // 1. Dashboard summary
     const summary = expected(await asu.request('GET', `/reportes/resumen?sucursalId=${branchId}`), 200);

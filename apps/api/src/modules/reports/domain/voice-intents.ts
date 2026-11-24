@@ -22,7 +22,7 @@ export interface PredefinedVoiceCommand {
 
 export interface ParsedVoiceIntent {
   matchedCommandId?: string;
-  tipo: ReportTabType;
+  tipo: ReportTabType | 'sucursales';
   periodo: 'todo' | 'semana' | 'mes' | 'ano';
   desde?: string;
   hasta?: string;
@@ -125,7 +125,7 @@ export function parseVoiceReportIntent(
   now = new Date(),
 ): ParsedVoiceIntent {
   const norm = normalizeText(transcript);
-  let tipo: ReportTabType = 'resumen';
+  let tipo: ParsedVoiceIntent['tipo'] = 'resumen';
   let matchedCommandId: string | undefined;
 
   if (/\b(venta|ventas|facturacion|vendido|ingreso|ingresos|recaudacion)\b/.test(norm)) {
@@ -142,6 +142,10 @@ export function parseVoiceReportIntent(
     tipo = 'clientes';
   } else if (/\b(resumen|ejecutivo|dashboard|kpi|general)\b/.test(norm)) {
     tipo = 'resumen';
+  }
+
+  if (tipo === 'resumen' && /\bsucursales\b/.test(norm)) {
+    tipo = 'sucursales';
   }
 
   let periodo: 'todo' | 'semana' | 'mes' | 'ano' = 'todo';

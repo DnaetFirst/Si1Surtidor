@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { AuditWriter, AuthRequest } from '../../../shared/domain/context';
 import { csv } from '../../../shared/domain/csv';
 import { BadRequestException } from '../../../shared/domain/errors';
-import { AiReportAdvisor, ReportDocumentExporter, ReportExportDataset } from '../domain/ai-advisor';
+import { AiReportAdvisor, AiReportAnalysisResult, ReportDocumentExporter, ReportExportDataset } from '../domain/ai-advisor';
 import { assertReportDateRange, reportCalendarRange } from '../domain/calendar';
 import { DashboardSummary, SalesReportResult } from '../domain/models';
 import { ReportsRepository } from '../domain/repository';
@@ -90,6 +90,17 @@ export class ReportsService {
     tipo: string,
     options: { desde?: string; hasta?: string; periodo?: string; sucursalId?: number; sucursalNombre?: string },
   ): Promise<ReportExportDataset> {
+    if (tipo === 'sucursales') {
+      const branches = await this.repository.listBranchesForReport();
+      return {
+        title: 'Directorio de sucursales',
+        subtitle: 'Sucursales registradas',
+        headers: ['Nombre', 'Estado'],
+        rows: branches.map(branch => [branch.nombre, branch.activo ? 'Activa' : 'Inactiva']),
+        totals: [`Total de sucursales: ${branches.length}`],
+      };
+    }
+
     const { from, to } = this.resolveDateRange(options.desde, options.hasta, options.periodo);
     const branchId = options.sucursalId;
     const subtitle = this.buildPeriodLabel({
@@ -321,7 +332,12 @@ export class ReportsService {
       ? branches.find(b => b.id === resolvedSucursalId)?.nombre || parsed.sucursalNombre
       : undefined;
 
-    const effectiveIntent = {
+    const effectiveIntent = resolvedTipo === 'sucursales' ? {
+      tipo: resolvedTipo,
+      periodo: 'todo' as const,
+      formato: parsed.formato,
+      preguntaIa: parsed.preguntaIa,
+    } : {
       ...parsed,
       tipo: resolvedTipo,
       periodo: resolvedDesde || resolvedHasta ? ('todo' as const) : resolvedPeriodo,
@@ -331,23 +347,30 @@ export class ReportsService {
       sucursalNombre: resolvedSucursalNombre,
     };
 
-    const [summary, dataset] = await Promise.all([
-      this.repository.getDashboardSummary(resolvedSucursalId),
-      this.buildDataset(effectiveIntent.tipo, {
-        desde: effectiveIntent.desde,
-        hasta: effectiveIntent.hasta,
-        periodo: effectiveIntent.periodo,
-        sucursalId: effectiveIntent.sucursalId,
-        sucursalNombre: effectiveIntent.sucursalNombre,
-      }),
-    ]);
-
-    const analysis = await this.aiAdvisor.analyze({
-      prompt: promptText,
-      intent: effectiveIntent,
-      summary,
-      dataset,
-    });
+    const dataset = await this.buildDataset(effectiveIntent.tipo, effectiveIntent);
+    let analysis: AiReportAnalysisResult;
+    if (effectiveIntent.tipo === 'sucursales') {
+      const names = dataset.rows.map(([name]) => String(name));
+      const answer = names.length
+        ? `Sucursales registradas (${names.length}): ${names.join(', ')}.`
+        : 'No hay sucursales registradas.';
+      analysis = {
+        resumenEjecutivo: answer,
+        hallazgos: [],
+        recomendaciones: [],
+        speechText: answer,
+        provider: 'local-data',
+        model: 'directorio',
+        intent: effectiveIntent,
+      };
+    } else {
+      analysis = await this.aiAdvisor.analyze({
+        prompt: promptText,
+        intent: effectiveIntent,
+        summary: await this.repository.getDashboardSummary(resolvedSucursalId),
+        dataset,
+      });
+    }
 
     if (req?.user) {
       await this.auditWriter.record(req, input.viaVoz ? 'reportes.ia.voz' : 'reportes.ia', 'reporte');

@@ -14,7 +14,7 @@ export interface AiReportAnalysisResult {
   hallazgos: string[];
   recomendaciones: string[];
   speechText: string;
-  provider: 'gemini' | 'local-fallback';
+  provider: 'gemini' | 'local-fallback' | 'local-data';
   model: string;
   notaConfiguracion?: string;
   intent: ParsedVoiceIntent;
