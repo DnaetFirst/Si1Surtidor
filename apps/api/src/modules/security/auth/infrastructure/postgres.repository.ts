@@ -52,13 +52,21 @@ export class PostgresSessionRepository extends SessionRepository {
     async invalidatePasswordResets(ci: string, tx?: TransactionContext) {
         return database(this.db, tx).query('UPDATE password_reset_token SET used_at=now() WHERE ci_usuario=$1 AND used_at IS NULL', [ci]);
     }
-    async createPasswordReset(ci: string, tokenHash: string, expiresAt: Date, tx?: TransactionContext) {
-        return database(this.db, tx).query('INSERT INTO password_reset_token(token_hash,ci_usuario,expires_at) VALUES($1,$2,$3)', [tokenHash, ci, expiresAt]);
+    async createPasswordReset(ci: string, tokenHash: string, expiresAt: Date, tx?: TransactionContext, codeHash?: string) {
+        return database(this.db, tx).query(
+            'INSERT INTO password_reset_token(token_hash,code_hash,ci_usuario,expires_at) VALUES($1,$2,$3,$4)',
+            [tokenHash, codeHash ?? null, ci, expiresAt]
+        );
     }
-    async lockPasswordReset(tokenHash: string, tx?: TransactionContext) {
-        return database(this.db, tx).query(`SELECT pr.ci_usuario AS ci FROM password_reset_token pr
-        JOIN usuario u ON u.ci=pr.ci_usuario WHERE pr.token_hash=$1 AND pr.used_at IS NULL
-        AND pr.expires_at>now() AND u.activo=true FOR UPDATE OF pr`, [tokenHash]);
+    async lockPasswordReset(tokenHash: string, tx?: TransactionContext, correo?: string) {
+        return database(this.db, tx).query(
+            `SELECT pr.ci_usuario AS ci, pr.token_hash AS "tokenHash"
+             FROM password_reset_token pr JOIN usuario u ON u.ci=pr.ci_usuario
+             WHERE ${correo ? 'pr.code_hash=$1 AND lower(u.correo)=$2' : 'pr.token_hash=$1'}
+               AND pr.used_at IS NULL AND pr.expires_at>now() AND u.activo=true
+             FOR UPDATE OF pr`,
+            correo ? [tokenHash, correo] : [tokenHash]
+        );
     }
     async updatePasswordAndRevokeSessions(ci: string, passwordHash: string, tx?: TransactionContext) {
         const db = database(this.db, tx);
@@ -69,5 +77,12 @@ export class PostgresSessionRepository extends SessionRepository {
     }
     async consumePasswordReset(tokenHash: string, tx?: TransactionContext) {
         return database(this.db, tx).query('UPDATE password_reset_token SET used_at=now() WHERE token_hash=$1', [tokenHash]);
+    }
+    async activeAsuCredentials(correo: string): Promise<{ password_hash: string }[]> {
+        return this.db.query(
+            `SELECT u.password_hash FROM usuario u JOIN rol r ON r.id=u.id_rol
+             WHERE lower(u.correo)=$1 AND r.codigo='ASU' AND r.activo AND u.activo`,
+            [correo]
+        );
     }
 }

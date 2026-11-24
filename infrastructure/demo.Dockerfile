@@ -10,7 +10,8 @@ ARG VITE_DEMO_ACCOUNTS=[]
 RUN VITE_DEMO_ACCOUNTS="$VITE_DEMO_ACCOUNTS" npm run build
 
 FROM node:22-bookworm-slim
-ENV NODE_ENV=production PORT=10000
+ARG VITE_DEMO_ACCOUNTS=[]
+ENV NODE_ENV=production PORT=10000 VITE_DEMO_ACCOUNTS=$VITE_DEMO_ACCOUNTS
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends apache2 ca-certificates \
     && rm -rf /var/lib/apt/lists/* \

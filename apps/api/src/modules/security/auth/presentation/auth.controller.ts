@@ -1,6 +1,6 @@
-import { Body, Controller, Get, HttpCode, HttpException, Post, Req, Res } from '@nestjs/common';
+import { Body, Controller, Get, Header, HttpCode, HttpException, Post, Req, Res } from '@nestjs/common';
 import { ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
-import { IsEmail, IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import { IsEmail, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
 import { Request, Response } from 'express';
 import { AuthService } from '../application/service';
 import { Public } from './decorators';
@@ -26,8 +26,13 @@ class PasswordResetRequestDto {
 class PasswordResetDto {
     @ApiProperty({ maxLength: 64 })
     @IsString()
-    @Matches(/^[a-f0-9]{64}$/, { message: 'El enlace de restablecimiento no es válido.' })
+    @Matches(/^(?:[a-f0-9]{64}|\d{6})$/, { message: 'Ingresa un código de 6 dígitos o un enlace válido.' })
     token!: string;
+    @ApiProperty({ format: 'email', required: false })
+    @IsOptional()
+    @IsEmail({}, { message: 'Ingresa un correo electrónico válido.' })
+    @MaxLength(100)
+    correo?: string;
     @ApiProperty({ minLength: 8, maxLength: 128 })
     @IsString()
     @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9\s]).{8,128}$/, {
@@ -105,7 +110,7 @@ export class AuthController {
         if (++rate.total > 5)
             throw new HttpException('Demasiadas solicitudes. Intenta nuevamente más tarde.', 429);
         await this.auth.requestPasswordReset(dto.correo, req);
-        return { message: 'Si existe una cuenta asociada a ese correo, recibirás un enlace para restablecer la contraseña.' };
+        return { message: 'Si existe una cuenta asociada a ese correo, recibirás un código y un enlace para restablecer la contraseña.' };
     }
     @Public()
     @Post('password-recovery')
@@ -127,8 +132,21 @@ export class AuthController {
         this.resetCompletionAttempts.set(key, rate);
         if (++rate.total > 10)
             throw new HttpException('Demasiados intentos. Intenta nuevamente más tarde.', 429);
-        await this.auth.resetPassword(dto.token, dto.contrasena);
+        if (/^\d{6}$/.test(dto.token) && dto.correo) {
+            const accountKey = `email:${dto.correo.toLowerCase()}`;
+            const accountRate = this.resetCompletionAttempts.get(accountKey) ?? { total: 0, until: now + 30 * 60 * 1000 };
+            this.resetCompletionAttempts.set(accountKey, accountRate);
+            if (++accountRate.total > 10)
+                throw new HttpException('Demasiados intentos. Intenta nuevamente más tarde.', 429);
+        }
+        await this.auth.resetPassword(dto.token, dto.contrasena, dto.correo);
         return { message: 'La contraseña se restableció correctamente.' };
+    }
+    @Public()
+    @Get('demo-asu')
+    @Header('Cache-Control', 'no-store')
+    async demoAsu() {
+        return { account: await this.auth.demoAsuAccount() };
     }
     @Get('me')
     me(

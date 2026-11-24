@@ -20,7 +20,12 @@ export function usePasswordRecovery() {
         }
     }
 
-    return { pending, error, sent, request };
+    function resetStep() {
+        setSent(false);
+        setError(null);
+    }
+
+    return { pending, error, sent, request, resetStep };
 }
 
 export function usePasswordReset() {
@@ -29,7 +34,7 @@ export function usePasswordReset() {
     const [error, setError] = useState<unknown>();
     const [complete, setComplete] = useState(false);
 
-    async function reset(token: string, contrasena: string, confirmacion: string) {
+    async function reset(token: string, contrasena: string, confirmacion: string, correo?: string) {
         setError(null);
         if (contrasena !== confirmacion) {
             setError(new Error('Las contraseñas no coinciden.'));
@@ -37,7 +42,7 @@ export function usePasswordReset() {
         }
         setPending(true);
         try {
-            await authApi.resetPassword(token, contrasena);
+            await authApi.resetPassword(token, contrasena, correo);
             setComplete(true);
         } catch (err) {
             setError(err);

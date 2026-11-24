@@ -632,3 +632,17 @@ export class NotificationEmail1700000000007 implements MigrationInterface {
     throw new Error('La reversión destructiva requiere restaurar una copia de seguridad explícitamente.');
   }
 }
+
+export class PasswordResetCode1700000000008 implements MigrationInterface {
+  public async up(runner: QueryRunner): Promise<void> {
+    await runner.query(`
+      ALTER TABLE IF EXISTS password_reset_token
+        ADD COLUMN IF NOT EXISTS code_hash varchar(64);
+      CREATE INDEX IF NOT EXISTS password_reset_token_code_idx ON password_reset_token(code_hash);
+    `);
+  }
+
+  public async down(): Promise<void> {
+    throw new Error('La reversión destructiva requiere restaurar una copia de seguridad explícitamente.');
+  }
+}

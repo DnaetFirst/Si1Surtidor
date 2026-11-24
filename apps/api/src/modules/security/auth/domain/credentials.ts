@@ -4,6 +4,7 @@ export abstract class PasswordHasher {
     abstract verify(password: string, hash: string): Promise<boolean>;
 }
 export abstract class SessionTokens {
+    abstract digestResetCode(code: string, correo: string): string;
     abstract digest(token: string): string;
     abstract sessionId(): string;
     abstract refresh(id: string): string;

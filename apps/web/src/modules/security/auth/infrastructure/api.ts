@@ -6,5 +6,11 @@ export const authApi: AuthApi = {
         user: SessionUser;
     }>('/auth/login', 'POST', { correo: correo.trim(), contrasena }),
     requestPasswordReset: (correo: string) => send<void>('/auth/password-reset/request', 'POST', { correo: correo.trim() }),
-    resetPassword: (token: string, contrasena: string) => send<void>('/auth/password-reset/complete', 'POST', { token, contrasena })
+    resetPassword: (token: string, contrasena: string, correo?: string) =>
+        send<void>('/auth/password-reset/complete', 'POST', {
+            token: token.trim(),
+            contrasena,
+            ...(correo?.trim() ? { correo: correo.trim() } : {}),
+        }),
+    demoAsuAccount: () => send<{ account: { correo: string; contrasena: string } | null }>('/auth/demo-asu', 'GET'),
 };

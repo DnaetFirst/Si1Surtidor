@@ -1,5 +1,5 @@
 import { BadRequestException, HttpException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomInt } from 'node:crypto';
 import { AuditWriter, RequestContext, SessionUser, TransactionContext, UnitOfWork } from '../../../../shared/domain/context';
 import { PasswordHasher, SessionTokens } from '../domain/credentials';
 import { PasswordResetMailer } from '../domain/password-reset-mailer';
@@ -65,16 +65,18 @@ export class AuthService {
         if (!user)
             return;
         const token = randomBytes(32).toString('hex');
+        const code = String(randomInt(100000, 1000000));
         const tokenHash = this.tokens.digest(token);
+        const codeHash = this.tokens.digestResetCode(code, user.correo.toLowerCase());
         await this.unitOfWork.transaction(async tx => {
             await this.repository.invalidatePasswordResets(user.ci, tx);
-            await this.repository.createPasswordReset(user.ci, tokenHash, new Date(Date.now() + 30 * 60 * 1000), tx);
+            await this.repository.createPasswordReset(user.ci, tokenHash, new Date(Date.now() + 30 * 60 * 1000), tx, codeHash);
             if (req) {
                 await this.auditWriter.authentication(req, 'AUTH_PASSWORD_RECOVERY', 'SUCCESS', { ci: user.ci, nombre: user.correo }, user.correo, tx);
             }
         });
         try {
-            await this.passwordResetMailer.send(user.correo, token);
+            await this.passwordResetMailer.send(user.correo, token, code);
         } catch (error) {
             await this.unitOfWork.transaction(tx => this.repository.consumePasswordReset(tokenHash, tx));
             this.logger.error('No se pudo enviar un correo de restablecimiento de contraseña.', error instanceof Error ? error.stack : undefined);
@@ -83,19 +85,49 @@ export class AuthService {
 
     // Alias de trazabilidad con diagramas UML (CU18)
     GenerarTokenReset(correo: string, req?: RequestContext) { return this.requestPasswordReset(correo, req); }
-    async resetPassword(token: string, password: string) {
-        const tokenHash = this.tokens.digest(token);
+    async resetPassword(token: string, password: string, correo?: string) {
+        const cleanInput = token.trim();
+        const isCode = /^\d{6}$/.test(cleanInput);
+        const cleanEmail = correo?.trim().toLowerCase();
+        if (isCode && !cleanEmail)
+            throw new BadRequestException('Ingresa el correo asociado al código de verificación.');
+        const codeEmail = isCode ? cleanEmail : undefined;
+        const tokenHash = codeEmail
+            ? this.tokens.digestResetCode(cleanInput, codeEmail)
+            : this.tokens.digest(cleanInput);
         const passwordHash = await this.passwords.hash(password);
         const reset = await this.unitOfWork.transaction(async tx => {
-            const [record] = await this.repository.lockPasswordReset(tokenHash, tx);
+            const [record] = await this.repository.lockPasswordReset(tokenHash, tx, codeEmail);
             if (!record)
                 return false;
             await this.repository.updatePasswordAndRevokeSessions(record.ci, passwordHash, tx);
-            await this.repository.consumePasswordReset(tokenHash, tx);
+            await this.repository.consumePasswordReset(record.tokenHash, tx);
             return true;
         });
         if (!reset)
-            throw new BadRequestException('El enlace de restablecimiento no es válido o venció. Solicita uno nuevo.');
+            throw new BadRequestException('El código o enlace de restablecimiento no es válido o venció. Solicita uno nuevo.');
+    }
+
+    async demoAsuAccount() {
+        const raw = process.env.VITE_DEMO_ACCOUNTS;
+        if (!raw)
+            return null;
+        let accounts: unknown;
+        try {
+            accounts = JSON.parse(raw);
+        } catch {
+            return null;
+        }
+        if (!Array.isArray(accounts))
+            return null;
+        const demo = accounts.find(account => typeof account?.rol === 'string' && /^ASU\b/i.test(account.rol));
+        if (typeof demo?.correo !== 'string' || typeof demo.contrasena !== 'string')
+            return null;
+        const correo = demo.correo.trim().toLowerCase();
+        const [user] = await this.repository.activeAsuCredentials(correo);
+        if (!user || !await this.passwords.verify(demo.contrasena, user.password_hash))
+            return null;
+        return { correo, contrasena: demo.contrasena };
     }
     async authenticate(token?: string): Promise<{
         user: SessionUser;

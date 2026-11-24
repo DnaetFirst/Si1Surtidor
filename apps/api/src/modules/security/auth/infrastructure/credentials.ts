@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import jwt from 'jsonwebtoken';
-import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { createHash, createHmac, randomBytes, randomUUID } from 'node:crypto';
 import { secret } from '../../../../infrastructure/config';
 import { SessionUser } from '../../../../shared/domain/context';
 import { PasswordHasher, SessionTokens } from '../domain/credentials';
@@ -13,6 +13,9 @@ export class ScryptPasswordHasher extends PasswordHasher {
 @Injectable()
 export class JwtSessionTokens extends SessionTokens {
     private readonly secret = secret('JWT_SECRET');
+    digestResetCode(code: string, correo: string) {
+        return createHmac('sha256', this.secret).update(`password-reset:${correo}:${code}`).digest('hex');
+    }
     digest(token: string) { return createHash('sha256').update(token).digest('hex'); }
     sessionId() { return randomUUID(); }
     refresh(id: string) { return id + '.' + randomBytes(48).toString('hex'); }

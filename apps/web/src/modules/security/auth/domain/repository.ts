@@ -4,5 +4,6 @@ export interface AuthApi {
         user: SessionUser;
     }>;
     requestPasswordReset(correo: string): Promise<void>;
-    resetPassword(token: string, contrasena: string): Promise<void>;
+    resetPassword(token: string, contrasena: string, correo?: string): Promise<void>;
+    demoAsuAccount(): Promise<{ account: { correo: string; contrasena: string } | null }>;
 }
