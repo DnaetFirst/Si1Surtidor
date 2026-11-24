@@ -27,7 +27,10 @@ export class SmtpPasswordResetMailer extends PasswordResetMailer {
               <h2 style="margin: 0 0 10px 0; color: #0f172a; font-size: 18px;">Restablecer contraseña · Mi Gasolinera</h2>
               <p style="color: #334155; font-size: 14px; line-height: 1.5; margin: 0;">Recibimos una solicitud para restablecer tu contraseña.</p>
               ${codeBlock}
+              ${code ? '<p>En la pantalla de recuperación, ingresa el código y tu nueva contraseña.</p>' : ''}
               <p style="margin: 16px 0;"><a href="${url.toString()}" style="display: inline-block; background: #0f172a; color: #ffffff; padding: 10px 18px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px;">Restablecer contraseña</a></p>
+              <p>Si prefieres usar el enlace, puedes copiarlo en tu navegador:</p>
+              <p style="overflow-wrap:anywhere">${url.toString()}</p>
               <p style="color: #64748b; font-size: 12px; line-height: 1.5; margin: 0;">El código y el enlace vencen en 30 minutos. Si no solicitaste este cambio, ignora este mensaje.</p>
             </div>`
         });

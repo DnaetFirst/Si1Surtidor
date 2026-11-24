@@ -110,7 +110,7 @@ export class AuthController {
         if (++rate.total > 5)
             throw new HttpException('Demasiadas solicitudes. Intenta nuevamente más tarde.', 429);
         await this.auth.requestPasswordReset(dto.correo, req);
-        return { message: 'Si existe una cuenta asociada a ese correo, recibirás un código y un enlace para restablecer la contraseña.' };
+        return { message: 'Si existe una cuenta asociada a ese correo, recibirás un código de seis dígitos para restablecer la contraseña.' };
     }
     @Public()
     @Post('password-recovery')

@@ -39,10 +39,10 @@ export function PasswordRecovery() {
 
     const showCodeForm = sent || manualCodeStep;
 
-    return <AuthPanel description={showCodeForm ? 'Ingresa el código recibido en tu correo y tu nueva contraseña.' : 'Te enviaremos un código de 6 dígitos y un enlace para restablecer tu contraseña.'}>
+    return <AuthPanel description={showCodeForm ? 'Ingresa el código recibido en tu correo y tu nueva contraseña.' : 'Te enviaremos un código de 6 dígitos para restablecer tu contraseña.'}>
         {showCodeForm ? (
             <form onSubmit={submitReset} className="login-form">
-                {sent && <p className="alert" role="status">Si existe una cuenta asociada a <strong>{correo}</strong>, recibirás un código de 6 dígitos y un enlace en tu correo.</p>}
+                {sent && <p className="alert" role="status">Si existe una cuenta asociada a <strong>{correo}</strong>, recibirás un código de 6 dígitos en tu correo. Escríbelo abajo antes de que pasen 30 minutos.</p>}
                 <ErrorBox error={resetError}/>
                 <label className="field">
                     <span className="field-label">Correo electrónico</span>

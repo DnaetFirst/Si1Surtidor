@@ -15,6 +15,7 @@ export interface TransactionContext {
 }
 export interface RequestContext {
     ip?: string;
+    headers?: Record<string, string | string[] | undefined>;
     method: string;
     path: string;
     originalUrl: string;
