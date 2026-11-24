@@ -542,3 +542,52 @@ export class CycleThreePatch1700000000005 implements MigrationInterface {
     throw new Error('La reversión destructiva requiere restaurar una copia de seguridad explícitamente.');
   }
 }
+
+export class CycleThreeFourAlignment1700000000006 implements MigrationInterface {
+  public async up(runner: QueryRunner): Promise<void> {
+    await runner.query(`
+      -- CU11: Estado de nota_venta para anulación trazable con restitución de stock
+      ALTER TABLE IF EXISTS nota_venta ADD COLUMN IF NOT EXISTS estado varchar(20) NOT NULL DEFAULT 'EMITIDA';
+
+      -- CU10: Estado de nota_compra para corrección/anulación trazable
+      ALTER TABLE IF EXISTS nota_compra ADD COLUMN IF NOT EXISTS estado varchar(20) NOT NULL DEFAULT 'COMPLETADA';
+
+      -- CU19: Campos de análisis de SalidaProducto (estado, documentoOrigen, referenciaReversion)
+      ALTER TABLE IF EXISTS salida_producto ADD COLUMN IF NOT EXISTS estado varchar(20) NOT NULL DEFAULT 'CONFIRMADA';
+      ALTER TABLE IF EXISTS salida_producto ADD COLUMN IF NOT EXISTS documento_origen varchar(100);
+      ALTER TABLE IF EXISTS salida_producto ADD COLUMN IF NOT EXISTS referencia_reversion integer REFERENCES salida_producto(id) ON DELETE SET NULL;
+
+      -- CU12: Vigencia temporal de descuentos (fechaInicio, fechaFin)
+      ALTER TABLE IF EXISTS descuento ADD COLUMN IF NOT EXISTS fecha_inicio date;
+      ALTER TABLE IF EXISTS descuento ADD COLUMN IF NOT EXISTS fecha_fin date;
+
+      -- Permisos completos del catálogo cerrado para Ciclos 3 y 4
+      INSERT INTO permiso(codigo, nombre, descripcion, modulo, accion, reservado) VALUES
+        ('descuentos.deshabilitar', 'Deshabilitar descuentos', 'Activar, desactivar o dar de baja descuentos', 'descuentos', 'deshabilitar', false),
+        ('ordenes.deshabilitar', 'Cancelar órdenes de compra', 'Cancelar o anular órdenes de compra pendientes', 'ordenes', 'deshabilitar', false),
+        ('compras.editar', 'Editar compras', 'Modificar glosa o borrador de notas de compra', 'compras', 'editar', false),
+        ('compras.deshabilitar', 'Anular compras', 'Anular notas de compra mediante reversión trazable', 'compras', 'deshabilitar', false),
+        ('ventas.editar', 'Editar ventas', 'Modificar notas de venta en borrador', 'ventas', 'editar', false),
+        ('ventas.deshabilitar', 'Anular ventas', 'Anular notas de venta confirmadas restituyendo stock', 'ventas', 'deshabilitar', false),
+        ('salidas.editar', 'Editar salidas de productos', 'Modificar registros de salida antes de confirmar', 'salidas', 'editar', false),
+        ('salidas.deshabilitar', 'Revertir salidas de productos', 'Revertir salidas confirmadas restituyendo stock', 'salidas', 'deshabilitar', false),
+        ('notificaciones.crear', 'Crear notificaciones', 'Registrar alertas de inventario', 'notificaciones', 'crear', false),
+        ('notificaciones.editar', 'Actualizar notificaciones', 'Marcar o resolver notificaciones', 'notificaciones', 'editar', false),
+        ('notificaciones.deshabilitar', 'Deshabilitar notificaciones', 'Descartar o cerrar notificaciones', 'notificaciones', 'deshabilitar', false),
+        ('reportes.gestionar', 'Gestionar reportes', 'Acceso completo a reportes y estadísticas', 'reportes', 'gestionar', false),
+        ('reportes.ver', 'Consultar reportes', 'Consultar reportes operativos', 'reportes', 'ver', false),
+        ('reportes.exportar', 'Exportar reportes CSV', 'Exportar reportes en formato CSV', 'reportes', 'exportar', false)
+      ON CONFLICT (codigo) DO NOTHING;
+
+      INSERT INTO permiso_rol(id_rol, id_permiso)
+      SELECT r.id, p.id FROM rol r CROSS JOIN permiso p
+      WHERE r.codigo IN ('ASU', 'ATI', 'GS', 'GG')
+        AND p.modulo IN ('proveedores', 'dispensadores', 'descuentos', 'ordenes', 'compras', 'ventas', 'salidas', 'notificaciones', 'reportes')
+      ON CONFLICT DO NOTHING;
+    `);
+  }
+
+  public async down(): Promise<void> {
+    throw new Error('La reversión destructiva requiere restaurar una copia de seguridad explícitamente.');
+  }
+}
