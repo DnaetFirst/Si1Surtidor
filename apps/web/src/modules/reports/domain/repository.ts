@@ -23,5 +23,6 @@ export interface ReportsApi {
   exportExcelUrl(type: string, from?: string, to?: string, branchId?: number, periodo?: string): string;
   exportPdfUrl(type: string, from?: string, to?: string, branchId?: number, periodo?: string): string;
   getVoiceCommands(): Promise<PredefinedVoiceCommand[]>;
+  transcribeVoice(data: string, mimeType: string): Promise<{ transcript: string }>;
   consultWithAi(payload: AiReportConsultPayload): Promise<AiReportResponse>;
 }

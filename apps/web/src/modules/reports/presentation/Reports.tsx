@@ -224,6 +224,7 @@ export function Reports() {
         periodo={periodo as 'todo' | 'semana' | 'mes' | 'ano'}
         branchId={idSucursal ? Number(idSucursal) : undefined}
         voiceCommands={voiceCommands}
+        onTranscribe={(data, mimeType) => api.transcribeVoice(data, mimeType)}
         onConsult={payload => api.consultWithAi(payload)}
         onApplyIntent={handleApplyVoiceIntent}
       />

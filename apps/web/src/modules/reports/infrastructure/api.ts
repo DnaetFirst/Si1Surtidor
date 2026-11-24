@@ -88,5 +88,7 @@ export const reportsApi: ReportsApi = {
 
   getVoiceCommands: () => send<PredefinedVoiceCommand[]>('/reportes/voz/comandos', 'GET'),
 
+  transcribeVoice: (data: string, mimeType: string) =>
+    send<{ transcript: string }>('/reportes/voz/transcribir', 'POST', { data, mimeType }),
   consultWithAi: (payload: AiReportConsultPayload) => send<AiReportResponse>('/reportes/ia/consultar', 'POST', payload),
 };

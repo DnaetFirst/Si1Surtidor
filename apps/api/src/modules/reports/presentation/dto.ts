@@ -1,5 +1,15 @@
-import { IsBoolean, IsInt, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsBase64, IsBoolean, IsIn, IsInt, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { Type } from 'class-transformer';
+
+export class TranscribeReportVoiceDto {
+  @IsBase64()
+  @MinLength(4)
+  @MaxLength(96000)
+  data!: string;
+
+  @IsIn(['audio/webm', 'audio/ogg', 'audio/m4a'])
+  mimeType!: string;
+}
 
 export class ConsultReportAiDto {
   @IsString()

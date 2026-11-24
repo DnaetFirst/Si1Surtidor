@@ -279,6 +279,10 @@ export class ReportsService {
     return PREDEFINED_VOICE_COMMANDS;
   }
 
+  async transcribeVoice(data: string, mimeType: string) {
+    return { transcript: await this.aiAdvisor.transcribe(data, mimeType) };
+  }
+
   async consultWithAi(
     input: {
       prompt: string;

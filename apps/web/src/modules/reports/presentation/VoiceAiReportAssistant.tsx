@@ -8,35 +8,22 @@ import {
   ReportTabType,
 } from '../domain/models';
 
-interface SpeechRecognitionEventLike {
-  resultIndex: number;
-  results: {
-    length: number;
-    [index: number]: {
-      isFinal: boolean;
-      0: { transcript: string };
-    };
-  };
+interface VoiceCapture {
+  recorder?: MediaRecorder;
+  timer?: number;
 }
 
-interface SpeechRecognitionErrorEventLike {
-  error: string;
-}
+const AUDIO_FORMATS = ['audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/mp4'];
+const MAX_RECORDING_MS = 10000;
 
-interface SpeechRecognitionInstance {
-  lang: string;
-  interimResults: boolean;
-  continuous: boolean;
-  maxAlternatives: number;
-  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
-  onerror: ((event: SpeechRecognitionErrorEventLike) => void) | null;
-  onend: (() => void) | null;
-  start(): void;
-  stop(): void;
-  abort(): void;
+function readAudio(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(',')[1]);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
 }
-
-type SpeechRecognitionConstructor = new () => SpeechRecognitionInstance;
 
 interface Props {
   isOpen: boolean;
@@ -47,6 +34,7 @@ interface Props {
   periodo: 'todo' | 'semana' | 'mes' | 'ano';
   branchId?: number;
   voiceCommands: PredefinedVoiceCommand[];
+  onTranscribe: (data: string, mimeType: string) => Promise<{ transcript: string }>;
   onConsult: (payload: AiReportConsultPayload) => Promise<AiReportResponse>;
   onApplyIntent: (intent: ParsedVoiceIntent) => void;
 }
@@ -111,15 +99,6 @@ const FALLBACK_COMMANDS: PredefinedVoiceCommand[] = [
   },
 ];
 
-function getSpeechRecognitionCtor(): SpeechRecognitionConstructor | null {
-  if (typeof window === 'undefined') return null;
-  const win = window as unknown as {
-    SpeechRecognition?: SpeechRecognitionConstructor;
-    webkitSpeechRecognition?: SpeechRecognitionConstructor;
-  };
-  return win.SpeechRecognition || win.webkitSpeechRecognition || null;
-}
-
 export function VoiceAiReportAssistant({
   isOpen,
   onClose,
@@ -129,12 +108,13 @@ export function VoiceAiReportAssistant({
   periodo,
   branchId,
   voiceCommands,
+  onTranscribe,
   onConsult,
   onApplyIntent,
 }: Props) {
   const [prompt, setPrompt] = useState('');
-  const [interimTranscript, setInterimTranscript] = useState('');
-  const [listening, setListening] = useState(false);
+  const [voicePhase, setVoicePhase] = useState<'idle' | 'requesting' | 'listening' | 'transcribing'>('idle');
+  const listening = voicePhase === 'listening';
   const [speakBack, setSpeakBack] = useState(true);
   const [speaking, setSpeaking] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -142,19 +122,29 @@ export function VoiceAiReportAssistant({
   const [voiceNote, setVoiceNote] = useState<string | null>(null);
   const [result, setResult] = useState<AiReportResponse | null>(null);
 
-  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
-  const speechSupported = Boolean(getSpeechRecognitionCtor());
+  const captureRef = useRef<VoiceCapture>();
+  const recordingFormat = typeof MediaRecorder === 'undefined' ? undefined
+    : AUDIO_FORMATS.find(type => MediaRecorder.isTypeSupported(type));
+  const speechSupported = Boolean(recordingFormat && navigator.mediaDevices?.getUserMedia);
   const ttsSupported = typeof window !== 'undefined' && 'speechSynthesis' in window;
   const commands = voiceCommands.length > 0 ? voiceCommands : FALLBACK_COMMANDS;
 
   useEffect(() => {
+    if (!isOpen) {
+      setVoicePhase('idle');
+      setVoiceNote(null);
+      return;
+    }
     return () => {
-      recognitionRef.current?.abort();
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
+      const capture = captureRef.current;
+      captureRef.current = undefined;
+      window.clearTimeout(capture?.timer);
+      const recorder = capture?.recorder;
+      if (recorder?.state === 'recording') recorder.stop();
+      recorder?.stream.getTracks().forEach(track => track.stop());
+      if (ttsSupported) window.speechSynthesis.cancel();
     };
-  }, []);
+  }, [isOpen, ttsSupported]);
 
   const speakText = (text: string) => {
     if (!ttsSupported || !text.trim()) return;
@@ -214,77 +204,100 @@ export function VoiceAiReportAssistant({
     }
   };
 
-  const handleToggleMic = () => {
-    if (listening) {
-      recognitionRef.current?.stop();
-      setListening(false);
+  const stopRecording = () => {
+    const capture = captureRef.current;
+    if (!capture) return;
+    if (!capture.recorder) {
+      captureRef.current = undefined;
+      setVoicePhase('idle');
+      setVoiceNote('Cuando el navegador habilite el micrófono, vuelve a mantener presionado para hablar.');
       return;
     }
-
-    const Ctor = getSpeechRecognitionCtor();
-    if (!Ctor) {
-      setVoiceNote(
-        'Tu navegador no soporta dictado directo por micrófono; usa los comandos predefinidos o escribe tu consulta abajo.',
-      );
-      return;
+    if (capture.recorder.state === 'recording') {
+      window.clearTimeout(capture.timer);
+      setVoicePhase('transcribing');
+      capture.recorder.stop();
     }
+  };
 
+  const startRecording = async () => {
+    if (!recordingFormat || !speechSupported || loading || captureRef.current) return;
+    const capture: VoiceCapture = {};
+    captureRef.current = capture;
     setError(null);
     setVoiceNote(null);
-    setInterimTranscript('');
+    setVoicePhase('requesting');
+    if (ttsSupported) stopSpeaking();
 
+    let stream: MediaStream | undefined;
     try {
-      const recognition = new Ctor();
-      recognition.lang = 'es-BO';
-      recognition.interimResults = true;
-      recognition.continuous = false;
-      recognition.maxAlternatives = 1;
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (captureRef.current !== capture) {
+        stream.getTracks().forEach(track => track.stop());
+        return;
+      }
 
-      recognition.onresult = event => {
-        let finalChunk = '';
-        let interimChunk = '';
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const item = event.results[i];
-          const text = item[0]?.transcript || '';
-          if (item.isFinal) {
-            finalChunk += text;
-          } else {
-            interimChunk += text;
+      const recorder = new MediaRecorder(stream, { mimeType: recordingFormat, audioBitsPerSecond: 32000 });
+      capture.recorder = recorder;
+      const chunks: Blob[] = [];
+      recorder.ondataavailable = event => chunks.push(event.data);
+      recorder.onerror = () => {
+        window.clearTimeout(capture.timer);
+        recorder.stream.getTracks().forEach(track => track.stop());
+        if (captureRef.current !== capture) return;
+        captureRef.current = undefined;
+        setVoicePhase('idle');
+        setVoiceNote('Se interrumpió la grabación. Vuelve a mantener presionado el micrófono.');
+      };
+      recorder.onstop = async () => {
+        window.clearTimeout(capture.timer);
+        recorder.stream.getTracks().forEach(track => track.stop());
+        if (captureRef.current !== capture) return;
+        setVoicePhase('transcribing');
+        try {
+          const container = recorder.mimeType.split(';')[0];
+          const mimeType = container === 'audio/mp4' ? 'audio/m4a' : container;
+          const blob = new Blob(chunks, { type: mimeType });
+          if (blob.size < 512) {
+            setVoiceNote('Mantén presionado el micrófono mientras hablas.');
+            return;
+          }
+          if (blob.size > 72000) {
+            setVoiceNote('La grabación es demasiado grande. Intenta con una frase más corta.');
+            return;
+          }
+          const data = await readAudio(blob);
+          if (captureRef.current !== capture) return;
+          const { transcript } = await onTranscribe(data, mimeType);
+          if (captureRef.current !== capture) return;
+          if (!transcript.trim()) {
+            setVoiceNote('No se detectó voz en la grabación. Intenta de nuevo.');
+            return;
+          }
+          setPrompt(transcript);
+          void executeQuery(transcript, { viaVoz: true });
+        } catch (err) {
+          if (captureRef.current === capture) {
+            setVoiceNote(err instanceof Error ? err.message : 'No se pudo transcribir la grabación.');
+          }
+        } finally {
+          if (captureRef.current === capture) {
+            captureRef.current = undefined;
+            setVoicePhase('idle');
           }
         }
-        if (interimChunk) {
-          setInterimTranscript(interimChunk);
-        }
-        if (finalChunk.trim()) {
-          const spoken = finalChunk.trim();
-          setInterimTranscript('');
-          setPrompt(spoken);
-          void executeQuery(spoken, { viaVoz: true });
-        }
       };
-
-      recognition.onerror = event => {
-        setListening(false);
-        setInterimTranscript('');
-        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-          setVoiceNote('Permiso de micrófono denegado. Habilita el micrófono o selecciona un comando predefinido.');
-        } else if (event.error === 'no-speech') {
-          setVoiceNote('No se detectó voz. Intenta hablar más cerca del micrófono o toca un comando predefinido.');
-        } else {
-          setVoiceNote(`Dictado detenido (${event.error}). Puedes usar cualquier comando predefinido.`);
-        }
-      };
-
-      recognition.onend = () => {
-        setListening(false);
-      };
-
-      recognitionRef.current = recognition;
-      setListening(true);
-      recognition.start();
-    } catch {
-      setListening(false);
-      setVoiceNote('No fue posible iniciar el micrófono en este navegador.');
+      recorder.start();
+      setVoicePhase('listening');
+      capture.timer = window.setTimeout(stopRecording, MAX_RECORDING_MS);
+    } catch (err) {
+      stream?.getTracks().forEach(track => track.stop());
+      if (captureRef.current !== capture) return;
+      captureRef.current = undefined;
+      setVoicePhase('idle');
+      setVoiceNote(err instanceof DOMException && err.name === 'NotAllowedError'
+        ? 'Permite el acceso al micrófono en tu navegador y vuelve a intentarlo.'
+        : 'No se pudo abrir el micrófono. Comprueba que esté conectado.');
     }
   };
 
@@ -355,7 +368,7 @@ export function VoiceAiReportAssistant({
               Asistente IA (Gemini) y Reportes por Voz
             </h3>
             <p style={{ margin: '4px 0 0 0', fontSize: '0.84rem', color: 'var(--muted)' }}>
-              Dicta un comando, selecciona un reporte predefinido o consulta con Gemini sobre tus ventas y stock.
+              Mantén presionado el micrófono para grabar. Al soltarlo, Gemini transcribe el audio.
             </p>
           </div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -381,7 +394,7 @@ export function VoiceAiReportAssistant({
             <button
               type="button"
               className="button"
-              disabled={loading}
+              disabled={loading || voicePhase !== 'idle'}
               onClick={() =>
                 void executeQuery(
                   `Analiza detalladamente la pestaña actual (${activeTab}) con los filtros seleccionados.`,
@@ -415,7 +428,7 @@ export function VoiceAiReportAssistant({
                 key={cmd.id}
                 type="button"
                 title={cmd.descripcion}
-                disabled={loading}
+                disabled={loading || voicePhase !== 'idle'}
                 onClick={() => handlePresetClick(cmd)}
                 className={`button ${active ? 'selected' : ''}`}
                 style={{
@@ -444,22 +457,43 @@ export function VoiceAiReportAssistant({
       >
         <button
           type="button"
-          onClick={handleToggleMic}
+          disabled={!speechSupported || loading || voicePhase === 'transcribing'}
+          aria-pressed={listening}
+          onPointerDown={event => {
+            if (!event.isPrimary || event.button !== 0) return;
+            event.currentTarget.setPointerCapture(event.pointerId);
+            void startRecording();
+          }}
+          onPointerUp={stopRecording}
+          onContextMenu={event => event.preventDefault()}
+          onPointerCancel={stopRecording}
+          onLostPointerCapture={stopRecording}
+          onClick={event => {
+            if (event.detail !== 0) return;
+            if (captureRef.current) stopRecording();
+            else void startRecording();
+          }}
           className={`button ${listening ? 'primary' : ''}`}
           style={{
             background: listening ? '#dc2626' : undefined,
             borderColor: listening ? '#b91c1c' : undefined,
             color: listening ? '#fff' : undefined,
             minWidth: '155px',
+            touchAction: 'none',
+            userSelect: 'none',
           }}
         >
           {listening ? (
             <>
               <Square size={14} /> Escuchando…
             </>
+          ) : voicePhase === 'requesting' ? (
+            'Abriendo micrófono…'
+          ) : voicePhase === 'transcribing' ? (
+            'Transcribiendo…'
           ) : speechSupported ? (
             <>
-              <Mic size={15} /> Dictar por voz
+              <Mic size={15} /> Mantén para hablar
             </>
           ) : (
             <>
@@ -470,7 +504,7 @@ export function VoiceAiReportAssistant({
 
         <input
           type="text"
-          value={interimTranscript ? `${interimTranscript}…` : prompt}
+          value={prompt}
           onChange={e => setPrompt(e.target.value)}
           placeholder='Ej: "Muéstrame las ventas de hoy en PDF" o "¿Qué combustible se vendió más?"'
           style={{
@@ -482,16 +516,16 @@ export function VoiceAiReportAssistant({
             borderRadius: 'var(--radius)',
             background: '#fff',
           }}
-          disabled={loading}
+          disabled={loading || voicePhase !== 'idle'}
         />
 
-        <button type="submit" className="button primary" disabled={loading || !prompt.trim()}>
+        <button type="submit" className="button primary" disabled={loading || voicePhase !== 'idle' || !prompt.trim()}>
           <Sparkles size={15} /> {loading ? 'Analizando…' : 'Consultar con Gemini AI'}
         </button>
       </form>
 
       {voiceNote && (
-        <div style={{ marginTop: '8px', fontSize: '0.84rem', color: '#b45309' }}>
+        <div role="status" style={{ marginTop: '8px', fontSize: '0.84rem', color: '#b45309' }}>
           {voiceNote}
         </div>
       )}

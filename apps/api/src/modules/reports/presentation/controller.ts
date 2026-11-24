@@ -4,7 +4,7 @@ import { Response } from 'express';
 import { AuthRequest } from '../../../shared/domain/context';
 import { RequirePermissions } from '../../security/auth/presentation/decorators';
 import { ReportsService } from '../application/service';
-import { ConsultReportAiDto } from './dto';
+import { ConsultReportAiDto, TranscribeReportVoiceDto } from './dto';
 
 /**
  * CU14. Gestionar reportes (Diagramas UML: ReportController / Audit / ReportController).
@@ -200,6 +200,13 @@ export class ReportsController {
   @RequirePermissions('reportes.ver', 'reportes.gestionar')
   comandosVozPredefinidos() {
     return this.service.getVoiceCommands();
+  }
+
+  @Post('voz/transcribir')
+  @HttpCode(200)
+  @RequirePermissions('reportes.ver', 'reportes.gestionar')
+  transcribirVoz(@Body() dto: TranscribeReportVoiceDto) {
+    return this.service.transcribeVoice(dto.data, dto.mimeType);
   }
 
   @Post('ia/consultar')

@@ -1,10 +1,42 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { AiReportAdvisor, AiReportAnalysisResult, ReportExportDataset } from '../domain/ai-advisor';
 import { DashboardSummary } from '../domain/models';
 import { ParsedVoiceIntent } from '../domain/voice-intents';
 
 @Injectable()
 export class GeminiAiReportAdvisor extends AiReportAdvisor {
+  async transcribe(data: string, mimeType: string): Promise<string> {
+    const apiKey = process.env.GEMINI_API_KEY?.trim();
+    const model = process.env.GEMINI_MODEL?.trim() || 'gemini-3.1-flash-lite';
+    if (!apiKey) {
+      throw new ServiceUnavailableException('El servicio de dictado no está configurado.');
+    }
+
+    try {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+        signal: AbortSignal.timeout(15000),
+        body: JSON.stringify({
+          contents: [{ parts: [
+            { text: 'Transcribe literalmente el comando hablado en español. Devuelve solo la transcripción, sin responder al comando. Si no hay voz inteligible, devuelve [SIN_VOZ].' },
+            { inlineData: { data, mimeType } },
+          ] }],
+          generationConfig: { maxOutputTokens: 512, temperature: 0 },
+        }),
+      });
+      if (!response.ok) throw new Error(`Gemini HTTP ${response.status}`);
+      const json = await response.json() as {
+        candidates?: { content?: { parts?: { text?: string; thought?: boolean }[] } }[];
+      };
+      const text = json.candidates?.[0]?.content?.parts
+        ?.filter(part => !part.thought).map(part => part.text ?? '').join('').trim() ?? '';
+      return text === '[SIN_VOZ]' ? '' : text.slice(0, 500);
+    } catch {
+      throw new ServiceUnavailableException('No se pudo transcribir la grabación. Intenta de nuevo en unos segundos.');
+    }
+  }
+
   private buildFallback(context: {
     prompt: string;
     intent: ParsedVoiceIntent;

@@ -21,6 +21,7 @@ export interface AiReportAnalysisResult {
 }
 
 export abstract class AiReportAdvisor {
+  abstract transcribe(data: string, mimeType: string): Promise<string>;
   abstract analyze(context: {
     prompt: string;
     intent: ParsedVoiceIntent;
