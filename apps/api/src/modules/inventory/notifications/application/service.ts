@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { AdministrativeTransaction, AuthRequest } from '../../../../shared/domain/context';
+import { AdministrativeTransaction, AuditWriter, AuthRequest } from '../../../../shared/domain/context';
+import { DispatchAlertsSummary, StockAlertDispatcher } from '../../../../shared/domain/mailer';
 import { ListQuery, PageResult } from '../../../../shared/domain/pagination';
 import { ProductNotificationRecord } from '../domain/models';
 import { NotificationRepository } from '../domain/repository';
@@ -9,6 +10,8 @@ export class NotificationService {
   constructor(
     private readonly repository: NotificationRepository,
     private readonly transactions: AdministrativeTransaction,
+    private readonly stockAlerts: StockAlertDispatcher,
+    private readonly auditWriter: AuditWriter,
   ) {}
 
   async obtener(query: ListQuery, req: AuthRequest): Promise<PageResult<ProductNotificationRecord>> {
@@ -28,6 +31,22 @@ export class NotificationService {
     return this.transactions.mutation(req, 'notificaciones.gestionar', 'notificacion_producto', async tx => {
       await this.repository.resolve(id, tx);
     });
+  }
+
+  async enviarCorreo(id: number, req: AuthRequest): Promise<DispatchAlertsSummary> {
+    const summary = await this.stockAlerts.dispatchPending(id);
+    if (req?.user) {
+      await this.auditWriter.record(req, 'notificaciones.correo', 'notificacion_producto');
+    }
+    return summary;
+  }
+
+  async despacharPendientes(req: AuthRequest): Promise<DispatchAlertsSummary> {
+    const summary = await this.stockAlerts.dispatchPending();
+    if (req?.user) {
+      await this.auditWriter.record(req, 'notificaciones.correo.lote', 'notificacion_producto');
+    }
+    return summary;
   }
 }
 

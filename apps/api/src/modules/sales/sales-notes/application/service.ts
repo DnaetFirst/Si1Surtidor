@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { AdministrativeTransaction, AuthRequest, TransactionContext } from '../../../../shared/domain/context';
+import { StockAlertDispatcher } from '../../../../shared/domain/mailer';
 import { BadRequestException, ConflictException, NotFoundException } from '../../../../shared/domain/errors';
 import { ListQuery, PageResult } from '../../../../shared/domain/pagination';
 import { CreateSaleCommand } from '../domain/commands';
@@ -14,6 +15,7 @@ export class SaleService {
   constructor(
     private readonly repository: SaleRepository,
     private readonly transactions: AdministrativeTransaction,
+    private readonly stockAlerts: StockAlertDispatcher,
   ) {}
 
   async obtener(query: ListQuery, branchId?: number): Promise<PageResult<SaleRecord>> {
@@ -46,10 +48,12 @@ export class SaleService {
       }
     }
 
-    return this.transactions.mutation(req, 'ventas.crear', 'nota_venta', async tx => {
+    const created = await this.transactions.mutation(req, 'ventas.crear', 'nota_venta', async tx => {
       await this.validarStock(dto, tx);
       return this.repository.create(dto, req.user.ci, tx);
     });
+    this.stockAlerts.dispatchPendingAsync();
+    return created;
   }
 
   async anular(id: number, req: AuthRequest): Promise<SaleRecord> {

@@ -42,6 +42,24 @@ export class NotificationsController {
     await this.service.resolver(id, req);
     return { ok: true };
   }
+
+  @Post(':id/enviar-correo')
+  @HttpCode(200)
+  @RequirePermissions('notificaciones.gestionar')
+  @ApiOperation({ summary: 'Enviar o reenviar una notificación de alerta por correo electrónico.' })
+  async enviarCorreo(@Param('id', ParseIntPipe) id: number, @Req() req: AuthRequest) {
+    const summary = await this.service.enviarCorreo(id, req);
+    return { ok: summary.sent > 0, ...summary };
+  }
+
+  @Post('despachar-correos')
+  @HttpCode(200)
+  @RequirePermissions('notificaciones.gestionar')
+  @ApiOperation({ summary: 'Despachar por correo todas las alertas de stock pendientes.' })
+  async despacharCorreos(@Req() req: AuthRequest) {
+    const summary = await this.service.despacharPendientes(req);
+    return { ok: true, ...summary };
+  }
 }
 
 export const ControladorNotificacion = NotificationsController;

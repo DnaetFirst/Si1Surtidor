@@ -14,6 +14,9 @@ import { MutationAuthorization } from '../modules/security/domain/mutation-autho
 import { PostgresAdministrationRepository } from '../modules/security/infrastructure/administration-policy';
 import { PostgresMutationAuthorization } from '../modules/security/infrastructure/mutation-authorization';
 import { AdministrativeTransaction, AuditWriter, UnitOfWork } from '../shared/domain/context';
+import { AppMailer, StockAlertDispatcher } from '../shared/domain/mailer';
+import { MultiTransportMailer } from '../shared/infrastructure/mail/multi-transport-mailer';
+import { PostgresStockAlertDispatcher } from '../modules/inventory/notifications/infrastructure/email-dispatcher';
 import { TypeOrmUnitOfWork } from '../shared/infrastructure/persistence/transaction';
 @Global()
 @Module({ providers: [
@@ -22,11 +25,13 @@ import { TypeOrmUnitOfWork } from '../shared/infrastructure/persistence/transact
         { provide: PasswordHasher, useClass: ScryptPasswordHasher },
         { provide: SessionTokens, useClass: JwtSessionTokens },
         { provide: UnitOfWork, useClass: TypeOrmUnitOfWork },
+        { provide: AppMailer, useClass: MultiTransportMailer },
+        { provide: StockAlertDispatcher, useClass: PostgresStockAlertDispatcher },
         { provide: AdministrativeTransaction, useClass: AdministrativeTransactionService },
         { provide: MutationAuthorization, useClass: PostgresMutationAuthorization },
         { provide: AuditWriter, useClass: PostgresAuditWriter },
         { provide: AdministrationRepository, useClass: PostgresAdministrationRepository },
         { provide: AdministrationPolicy, useClass: AccessAdministrationPolicy },
-    ], exports: [SecuritySettings, PasswordHasher, SessionTokens, UnitOfWork, AdministrativeTransaction, AuditWriter, AdministrationPolicy] })
+    ], exports: [SecuritySettings, PasswordHasher, SessionTokens, UnitOfWork, AppMailer, StockAlertDispatcher, AdministrativeTransaction, AuditWriter, AdministrationPolicy] })
 export class PlatformModule {
 }

@@ -13,6 +13,7 @@ testUrl.pathname = `/${databaseName}`;
 const env = { ...process.env, DATABASE_URL: testUrl.toString(), TEST_DATABASE_URL: testUrl.toString(),
   PORT: '3001', WEB_ORIGIN: 'http://127.0.0.1:5174', API_PROXY_TARGET: 'http://127.0.0.1:3001',
   TEST_API_URL: 'http://127.0.0.1:3001/api', TEST_WEB_URL: 'http://127.0.0.1:5174',
+  MAIL_MAILER: 'log',
   TEST_ASU_EMAIL: process.env.BOOTSTRAP_ASU_EMAIL, TEST_ASU_PASSWORD: process.env.BOOTSTRAP_ASU_PASSWORD,
   TEST_ATI_EMAIL: process.env.BOOTSTRAP_ATI_EMAIL, TEST_ATI_PASSWORD: process.env.BOOTSTRAP_ATI_PASSWORD,
 };

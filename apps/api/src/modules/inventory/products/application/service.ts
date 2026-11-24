@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { AdministrativeTransaction, AuthRequest, TransactionContext } from '../../../../shared/domain/context';
+import { StockAlertDispatcher } from '../../../../shared/domain/mailer';
 import { BadRequestException, ConflictException, NotFoundException } from '../../../../shared/domain/errors';
 import { CreateProductCommand, UpdateProductCommand } from '../domain/commands';
 import { ProductRepository } from '../domain/repository';
@@ -8,7 +9,8 @@ import { ProductRepository } from '../domain/repository';
 export class ProductService {
   constructor(
     private readonly repository: ProductRepository,
-    private readonly transactions: AdministrativeTransaction
+    private readonly transactions: AdministrativeTransaction,
+    private readonly stockAlerts: StockAlertDispatcher,
   ) {}
 
   async obtener(tx?: TransactionContext) {
@@ -30,8 +32,7 @@ export class ProductService {
   }
 
   async crear(dto: CreateProductCommand, req: AuthRequest) {
-
-    return this.transactions.mutation(req, 'productos.crear', 'producto', async tx => {
+    const created = await this.transactions.mutation(req, 'productos.crear', 'producto', async tx => {
       const existing = await this.repository.findByName(dto.nombre.trim(), tx);
       if (existing) {
         throw new ConflictException(`El producto con nombre "${dto.nombre}" ya existe.`);
@@ -49,7 +50,7 @@ export class ProductService {
         }
       }
 
-      return this.repository.create({
+      const row = await this.repository.create({
         nombre: dto.nombre.trim(),
         stock: dto.stock ?? 0,
         stockMinimo: dto.stockMinimo ?? 0,
@@ -64,7 +65,10 @@ export class ProductService {
         idSucursal: dto.idSucursal,
         grupos: dto.grupos,
       }, tx);
+      return row;
     });
+    this.stockAlerts.dispatchPendingAsync();
+    return created;
   }
 
   async create(dto: CreateProductCommand, req: AuthRequest) {
@@ -72,7 +76,7 @@ export class ProductService {
   }
 
   async modificar(id: number, dto: UpdateProductCommand, req: AuthRequest) {
-    return this.transactions.mutation(req, 'productos.editar', 'producto', async tx => {
+    const updated = await this.transactions.mutation(req, 'productos.editar', 'producto', async tx => {
       const current = await this.repository.findById(id, tx);
       if (!current) throw new NotFoundException('Producto no encontrado.');
 
@@ -113,6 +117,8 @@ export class ProductService {
         grupos: dto.grupos,
       }, tx);
     });
+    this.stockAlerts.dispatchPendingAsync();
+    return updated;
   }
 
   async update(id: number, dto: UpdateProductCommand, req: AuthRequest) {

@@ -230,7 +230,7 @@ export function NotificationsDrawer() {
                     {!n.resuelta && (
                       <button
                         className="button"
-                        style={{ fontSize: '0.75rem', padding: '2px 8px', height: '26px' }}
+                        style={{ fontSize: '0.75rem', padding: '2px 8px', height: '26px', minHeight: '26px' }}
                         onClick={e => {
                           e.stopPropagation();
                           handleResolve(n.id);

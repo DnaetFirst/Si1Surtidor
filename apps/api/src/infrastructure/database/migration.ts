@@ -591,3 +591,44 @@ export class CycleThreeFourAlignment1700000000006 implements MigrationInterface 
     throw new Error('La reversión destructiva requiere restaurar una copia de seguridad explícitamente.');
   }
 }
+
+export class NotificationEmail1700000000007 implements MigrationInterface {
+  public async up(runner: QueryRunner): Promise<void> {
+    await runner.query(`
+      ALTER TABLE IF EXISTS notificacion_producto
+        ADD COLUMN IF NOT EXISTS correo_estado varchar(20) NOT NULL DEFAULT 'PENDIENTE',
+        ADD COLUMN IF NOT EXISTS correo_intentos integer NOT NULL DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS correo_enviado_at timestamptz,
+        ADD COLUMN IF NOT EXISTS correo_destinatarios text NOT NULL DEFAULT '',
+        ADD COLUMN IF NOT EXISTS correo_ultimo_error varchar(255) NOT NULL DEFAULT '';
+
+      UPDATE notificacion_producto
+      SET correo_estado = 'OMITIDO'
+      WHERE correo_estado = 'PENDIENTE';
+
+      CREATE OR REPLACE FUNCTION verificar_stock_minimo() RETURNS TRIGGER LANGUAGE plpgsql AS $$
+      BEGIN
+        IF COALESCE(NEW.esta_activo, true)
+           AND NEW.stock <= NEW.stock_minimo
+           AND (TG_OP = 'INSERT' OR OLD.stock IS DISTINCT FROM NEW.stock) THEN
+          INSERT INTO notificacion_producto(titulo, descripcion, id_producto, correo_estado)
+          VALUES (
+            'Stock bajo',
+            'El producto ' || NEW.nombre || ' ha alcanzado el stock mínimo (' || NEW.stock_minimo || ').',
+            NEW.id,
+            'PENDIENTE'
+          );
+        END IF;
+        RETURN NEW;
+      END $$;
+
+      DROP TRIGGER IF EXISTS trg_verificar_stock_minimo ON producto;
+      CREATE TRIGGER trg_verificar_stock_minimo AFTER INSERT OR UPDATE OF stock ON producto
+        FOR EACH ROW EXECUTE FUNCTION verificar_stock_minimo();
+    `);
+  }
+
+  public async down(): Promise<void> {
+    throw new Error('La reversión destructiva requiere restaurar una copia de seguridad explícitamente.');
+  }
+}

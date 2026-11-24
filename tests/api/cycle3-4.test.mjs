@@ -502,23 +502,45 @@ test('Ciclos 3 y 4: integración HTTP integral con PostgreSQL', { timeout: 120_0
       200
     );
 
+    // 0. Crear producto bajo stock mínimo para garantizar alerta activa (CU18)
+    const alertProduct = expected(
+      await asu.request('POST', '/productos', {
+        nombre: `Lubricante Alerta ${Date.now()}`,
+        stock: 2,
+        stockMinimo: 10,
+        descripcion: 'Producto para probar alerta por correo',
+        precioVenta: 35.0,
+        precioCompra: 22.0,
+        idCategoria: 1,
+        idSucursal: branchId,
+      }),
+      201
+    );
+
     // 1. Consultar conteo de notificaciones no leídas
     const countResult = expected(await asu.request('GET', '/inventario/notificaciones/conteo-no-leidas'), 200);
     assert.ok(typeof countResult.noLeidas === 'number');
 
-    // 2. Listar notificaciones
+    // 2. Listar notificaciones y probar despacho por correo electrónico (CU18)
     const notifications = expected(await asu.request('GET', '/inventario/notificaciones?page=1&pageSize=20'), 200);
-    assert.ok(Array.isArray(notifications.items));
+    assert.ok(Array.isArray(notifications.items) && notifications.items.length > 0);
 
-    if (notifications.items.length > 0) {
-      notificationId = notifications.items[0].id;
+    const lowAlert = notifications.items.find(n => n.idProducto === alertProduct.id) || notifications.items[0];
+    notificationId = lowAlert.id;
 
-      // 3. Marcar como leída
-      expected(await asu.request('POST', `/inventario/notificaciones/${notificationId}/leida`), 200);
+    // Verificar envío por correo electrónico sin duplicados
+    const sendRes = expected(await asu.request('POST', `/inventario/notificaciones/${notificationId}/enviar-correo`), 200);
+    assert.equal(sendRes.ok, true);
+    assert.equal(sendRes.sent, 1);
 
-      // 4. Resolver notificación
-      expected(await asu.request('PATCH', `/inventario/notificaciones/${notificationId}/resolver`), 200);
-    }
+    const batchRes = expected(await asu.request('POST', '/inventario/notificaciones/despachar-correos'), 200);
+    assert.equal(batchRes.ok, true);
+
+    // 3. Marcar como leída
+    expected(await asu.request('POST', `/inventario/notificaciones/${notificationId}/leida`), 200);
+
+    // 4. Resolver notificación
+    expected(await asu.request('PATCH', `/inventario/notificaciones/${notificationId}/resolver`), 200);
   });
 
   await t.test('CU14: Reportes, Estadísticas y Exportación CSV', async () => {
@@ -606,12 +628,12 @@ test('Ciclos 3 y 4: integración HTTP integral con PostgreSQL', { timeout: 120_0
 
   await t.test('Inmutabilidad de la Bitácora para operaciones de Ciclos 3 y 4', async () => {
     // Consultar bitácora y verificar registros de acciones de ciclo 3 y 4
-    const auditLogs = expected(await asu.request('GET', '/bitacora'), 200);
+    const auditLogs = expected(await asu.request('GET', '/bitacora?pageSize=50'), 200);
     const logs = auditLogs.registros || auditLogs.items || auditLogs;
     assert.ok(Array.isArray(logs));
     assert.ok(logs.length > 0, 'La bitácora debe contener eventos registrados');
 
-    // Verificar que se hayan registrado acciones de compras, ventas o proveedores
+    // Verificar que se hayan registrado acciones de compras, ventas, reportes o notificaciones
     const actions = logs.map(l => (l.accion || '').toUpperCase());
     assert.ok(
       actions.some(a =>
@@ -621,7 +643,9 @@ test('Ciclos 3 y 4: integración HTTP integral con PostgreSQL', { timeout: 120_0
         a.includes('VENTA') ||
         a.includes('DISPENSADOR') ||
         a.includes('DESCUENTO') ||
-        a.includes('SALIDA')
+        a.includes('SALIDA') ||
+        a.includes('REPORTE') ||
+        a.includes('NOTIFICACION')
       ),
       'Debe haber eventos auditados de los casos de uso implementados en Ciclos 3 y 4'
     );

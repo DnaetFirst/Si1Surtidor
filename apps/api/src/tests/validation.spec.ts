@@ -8,6 +8,7 @@ import { ArchiveDto } from '../modules/enterprise/audit/presentation/dto';
 import { UpdateCompanyDto } from '../modules/enterprise/company/presentation/dto';
 import { assertReportDateRange, reportCalendarRange } from '../modules/reports/domain/calendar';
 import { PREDEFINED_VOICE_COMMANDS, parseVoiceReportIntent } from '../modules/reports/domain/voice-intents';
+import { filterDeliverableEmails, renderStockAlertEmail } from '../modules/inventory/notifications/domain/email-alert';
 import { UpdateRoleDto } from '../modules/security/roles/presentation/dto';
 import { CreateUserDto,UpdateUserDto } from '../modules/security/users/presentation/dto';
 import { csv } from '../shared/domain/csv';
@@ -106,4 +107,33 @@ test('Reportes por voz predefinidos e intención Gemini detectan tipo, rango, su
   assert.equal(semana.tipo, 'dispensadores');
   assert.equal(semana.periodo, 'semana');
   assert.equal(semana.sucursalId, 2);
+});
+
+test('Notificaciones por correo (CU18) filtran dominios ficticios, deduplican y escapan HTML', () => {
+  const clean = filterDeliverableEmails([
+    'asu@migasolinera.local',
+    'user@example.com',
+    'demo@surtidor.example',
+    'ronny0ronaldo@gmail.com',
+    'RONNY0RONALDO@gmail.com',
+    'gerencia@empresa.bo',
+    'sin-arroba',
+  ]);
+  assert.deepEqual(clean, ['ronny0ronaldo@gmail.com', 'gerencia@empresa.bo']);
+
+  const mail = renderStockAlertEmail({
+    id: 1,
+    titulo: 'Stock bajo',
+    descripcion: 'Alerta <script>alert(1)</script> en depósito',
+    fecha: '2026-11-26T14:30:00Z',
+    productoNombre: 'Aceite 20W-50',
+    stockActual: 2,
+    stockMinimo: 10,
+    sucursalNombre: 'Sucursal Norte',
+    portalUrl: 'https://surtidor.example.bo/productos',
+  });
+  assert.ok(mail.subject.includes('Aceite 20W-50'));
+  assert.ok(!mail.html.includes('<script>'));
+  assert.ok(mail.html.includes('&lt;script&gt;'));
+  assert.ok(mail.html.includes('Ver Alertas en el Portal'));
 });
