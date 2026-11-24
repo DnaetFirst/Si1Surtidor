@@ -6,7 +6,7 @@ import { AiReportAdvisor, AiReportAnalysisResult, ReportDocumentExporter, Report
 import { assertReportDateRange, reportCalendarRange } from '../domain/calendar';
 import { DashboardSummary, SalesReportResult } from '../domain/models';
 import { ReportsRepository } from '../domain/repository';
-import { PREDEFINED_VOICE_COMMANDS, parseVoiceReportIntent } from '../domain/voice-intents';
+import { PREDEFINED_VOICE_COMMANDS, branchContactFields, parseVoiceReportIntent } from '../domain/voice-intents';
 
 /**
  * CU14. Gestionar reportes (Actores: ASU, ATI, GG, GS).
@@ -91,12 +91,15 @@ export class ReportsService {
     options: { desde?: string; hasta?: string; periodo?: string; sucursalId?: number; sucursalNombre?: string },
   ): Promise<ReportExportDataset> {
     if (tipo === 'sucursales') {
-      const branches = await this.repository.listBranchesForReport();
+      const branches = (await this.repository.listBranchesForReport())
+        .filter(branch => !options.sucursalId || branch.id === options.sucursalId);
       return {
         title: 'Directorio de sucursales',
         subtitle: 'Sucursales registradas',
-        headers: ['Nombre', 'Estado'],
-        rows: branches.map(branch => [branch.nombre, branch.activo ? 'Activa' : 'Inactiva']),
+        headers: ['Nombre', 'Estado', 'Teléfono', 'Dirección', 'Correo'],
+        rows: branches.map(branch => [
+          branch.nombre, branch.activo ? 'Activa' : 'Inactiva', branch.telefono, branch.direccion, branch.correo,
+        ]),
         totals: [`Total de sucursales: ${branches.length}`],
       };
     }
@@ -335,6 +338,7 @@ export class ReportsService {
     const effectiveIntent = resolvedTipo === 'sucursales' ? {
       tipo: resolvedTipo,
       periodo: 'todo' as const,
+      sucursalId: parsed.sucursalId,
       formato: parsed.formato,
       preguntaIa: parsed.preguntaIa,
     } : {
@@ -351,14 +355,22 @@ export class ReportsService {
     let analysis: AiReportAnalysisResult;
     if (effectiveIntent.tipo === 'sucursales') {
       const names = dataset.rows.map(([name]) => String(name));
-      const answer = names.length
-        ? `Sucursales registradas (${names.length}): ${names.join(', ')}.`
-        : 'No hay sucursales registradas.';
+      const fields = branchContactFields(promptText);
+      const contacts = fields.length ? dataset.rows.map(row => {
+        const details = fields.map(field => `${field}: ${row[dataset.headers.indexOf(field)] || 'sin registro'}`);
+        return `${row[0]} — ${details.join(', ')}`;
+      }) : [];
+      const answer = names.length === 0
+        ? 'No hay sucursales registradas para esta consulta.'
+        : fields.length
+          ? `Datos de contacto de ${names.length} sucursal(es).`
+          : `Sucursales registradas (${names.length}): ${names.join(', ')}.`;
       analysis = {
+        estado: names.length ? 'respondida' : 'sin-datos',
         resumenEjecutivo: answer,
-        hallazgos: [],
+        hallazgos: contacts,
         recomendaciones: [],
-        speechText: answer,
+        speechText: [answer, ...contacts].join('. '),
         provider: 'local-data',
         model: 'directorio',
         intent: effectiveIntent,

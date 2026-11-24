@@ -135,6 +135,7 @@ export interface AiReportConsultPayload {
 }
 
 export interface AiReportResponse {
+  estado: 'respondida' | 'sin-datos' | 'fuera-de-alcance' | 'no-disponible';
   resumenEjecutivo: string;
   hallazgos: string[];
   recomendaciones: string[];

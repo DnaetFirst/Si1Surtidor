@@ -10,6 +10,7 @@ export interface ReportExportDataset {
 }
 
 export interface AiReportAnalysisResult {
+  estado: 'respondida' | 'sin-datos' | 'fuera-de-alcance' | 'no-disponible';
   resumenEjecutivo: string;
   hallazgos: string[];
   recomendaciones: string[];

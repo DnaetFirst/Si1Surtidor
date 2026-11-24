@@ -8,6 +8,6 @@ export abstract class ReportsRepository {
   abstract getInventoryStatusReport(branchId?: number): Promise<any[]>;
   abstract getExitsReport(from?: string, to?: string, branchId?: number): Promise<any[]>;
   abstract getTopCustomersReport(limit?: number): Promise<any[]>;
-  abstract listBranchesForReport(): Promise<{ nombre: string; activo: boolean }[]>;
+  abstract listBranchesForReport(): Promise<{ id: number; nombre: string; activo: boolean; telefono: string | null; direccion: string | null; correo: string | null }[]>;
   abstract listActiveBranches(): Promise<{ id: number; nombre: string }[]>;
 }

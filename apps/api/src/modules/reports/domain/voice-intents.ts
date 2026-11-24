@@ -119,6 +119,15 @@ function shiftIsoDate(iso: string, deltaDays: number): string {
   return dt.toISOString().split('T')[0];
 }
 
+export function branchContactFields(prompt: string): string[] {
+  const text = normalizeText(prompt);
+  const fields: string[] = [];
+  if (/\b(telefono|telefonos|celular|celulares|contacto|contactos)\b/.test(text)) fields.push('Teléfono');
+  if (/\b(direccion|direcciones|ubicacion|ubicaciones|donde)\b/.test(text)) fields.push('Dirección');
+  if (/\b(correo|correos|email|emails)\b/.test(text)) fields.push('Correo');
+  return fields;
+}
+
 export function parseVoiceReportIntent(
   transcript: string,
   branches: { id: number; nombre: string }[] = [],
@@ -144,7 +153,7 @@ export function parseVoiceReportIntent(
     tipo = 'resumen';
   }
 
-  if (tipo === 'resumen' && /\bsucursales\b/.test(norm)) {
+  if (tipo === 'resumen' && /\bsucursal(?:es)?\b/.test(norm)) {
     tipo = 'sucursales';
   }
 

@@ -557,6 +557,16 @@ test('Ciclos 3 y 4: integración HTTP integral con PostgreSQL', { timeout: 120_0
     assert.equal(response.intent.sucursalId, undefined);
     for (const { nombre } of items) assert.ok(response.resumenEjecutivo.includes(nombre));
 
+    const contacts = expected(await asu.request('POST', '/reportes/ia/consultar', {
+      prompt: 'Cual es el telefono de cada sucursal?',
+    }), 200);
+    assert.equal(contacts.estado, 'respondida');
+    assert.equal(contacts.intent.tipo, 'sucursales');
+    for (const branch of items) {
+      assert.ok(contacts.hallazgos.some(line => line.includes(branch.nombre)
+        && line.includes(branch.telefono || 'sin registro')));
+    }
+
     const formats = { csv: 'text/csv', excel: 'spreadsheetml.sheet', pdf: 'application/pdf' };
     for (const [format, contentType] of Object.entries(formats)) {
       const file = await asu.request('GET', `/reportes/exportar/${format}?tipo=sucursales`);

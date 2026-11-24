@@ -211,8 +211,10 @@ export function VoiceAiReportAssistant({
 
       const data = await onConsult(payload);
       setResult(data);
-      onApplyIntent(data.intent);
-      if (data.intent.formato) void downloadReport(data.intent.formato, data.intent);
+      if (data.estado === 'respondida') {
+        onApplyIntent(data.intent);
+        if (data.intent.formato) void downloadReport(data.intent.formato, data.intent);
+      }
       if (speakBack && (opts?.viaVoz || opts?.forceCurrentView === false)) {
         speakText(data.speechText || data.resumenEjecutivo);
       }
@@ -586,7 +588,7 @@ export function VoiceAiReportAssistant({
                   color: result.provider === 'gemini' ? '#1d4ed8' : '#334155',
                 }}
               >
-                {result.provider === 'gemini' ? `Gemini (${result.model})` : result.provider === 'local-data' ? 'Datos del sistema' : `Motor analítico local (${result.model})`}
+                {result.provider === 'gemini' ? `Gemini (${result.model})` : result.provider === 'local-data' ? 'Datos del sistema' : 'Gemini no disponible'}
               </span>
               <span style={{ fontSize: '0.82rem', color: 'var(--muted)' }}>
                 {result.datasetTitle} · {result.datasetSubtitle}
@@ -625,7 +627,7 @@ export function VoiceAiReportAssistant({
             {result.hallazgos.length > 0 && (
               <div>
                 <div style={{ fontSize: '0.82rem', fontWeight: 700, marginBottom: '4px' }}>
-                  Hallazgos clave
+                  {result.intent.tipo === 'sucursales' ? 'Datos de sucursales' : 'Hallazgos clave'}
                 </div>
                 <ul style={{ margin: 0, paddingLeft: '18px', fontSize: '0.88rem', lineHeight: 1.45 }}>
                   {result.hallazgos.map((h, i) => (
@@ -649,7 +651,7 @@ export function VoiceAiReportAssistant({
             )}
           </div>
 
-          <div role="group" aria-label="Descargar reporte" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '12px' }}>
+          {result.estado === 'respondida' && <div role="group" aria-label="Descargar reporte" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '12px' }}>
             {(['csv', 'excel', 'pdf'] as const).map(format => (
               <button
                 key={format}
@@ -661,7 +663,7 @@ export function VoiceAiReportAssistant({
                 <Download size={14}/> Descargar {format === 'excel' ? 'Excel' : format.toUpperCase()}
               </button>
             ))}
-          </div>
+          </div>}
           {downloadError && <p role="alert">{downloadError}</p>}
 
           {result.notaConfiguracion && (

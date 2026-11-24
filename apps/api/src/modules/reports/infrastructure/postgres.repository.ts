@@ -284,8 +284,8 @@ export class PostgresReportsRepository extends ReportsRepository {
     );
   }
 
-  async listBranchesForReport(): Promise<{ nombre: string; activo: boolean }[]> {
-    return this.db.query('SELECT nombre, activo FROM sucursal ORDER BY lower(nombre), id');
+  async listBranchesForReport(): Promise<{ id: number; nombre: string; activo: boolean; telefono: string | null; direccion: string | null; correo: string | null }[]> {
+    return this.db.query('SELECT id, nombre, activo, telefono, direccion, correo FROM sucursal ORDER BY lower(nombre), id');
   }
 
   async listActiveBranches(): Promise<{ id: number; nombre: string }[]> {
