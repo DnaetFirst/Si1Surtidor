@@ -37,3 +37,16 @@
     .login-demo-account:first-child { grid-column: auto; }
     .login-demo-details { gap: 8px; margin-top: 12px; }
 }
+
+
+.login-saved-account,
+.login-remember-account {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.login-remember-account {
+    font-size: 0.875rem;
+}
