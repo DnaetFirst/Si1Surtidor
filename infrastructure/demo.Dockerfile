@@ -6,7 +6,8 @@ COPY apps/web/package.json apps/web/
 RUN npm ci
 COPY apps apps
 COPY scripts/clean-api-build.mjs scripts/clean-api-build.mjs
-RUN npm run build
+ARG VITE_DEMO_ACCOUNTS=[]
+RUN VITE_DEMO_ACCOUNTS="$VITE_DEMO_ACCOUNTS" npm run build
 
 FROM node:22-bookworm-slim
 ENV NODE_ENV=production PORT=10000

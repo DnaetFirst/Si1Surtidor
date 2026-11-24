@@ -12,3 +12,14 @@
 .login-brand { color: inherit; text-decoration: none; }
 .login-password-hint { color: #686868; font-size: 12px; line-height: 18px; }
 .fuel-decoration { position: absolute; right: -24px; bottom: 24px; width: 192px; height: 352px; color: #252525; }
+
+.login-demo { margin-top: 24px; border-top: 1px solid #e5e7eb; padding-top: 20px; }
+.login-demo h2 { font-size: 16px; font-weight: 700; }
+.login-demo p { color: #686868; font-size: 12px; line-height: 18px; margin-top: 8px; }
+.login-demo-accounts { display: grid; gap: 8px; margin-top: 12px; }
+.login-demo-account { display: grid; gap: 4px; width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f9fafb; color: #252525; text-align: left; cursor: pointer; }
+.login-demo-account:hover { background: #f0f3f7; border-color: #9ca3af; }
+.login-demo-account:focus-visible { outline: 2px solid #252525; outline-offset: 2px; }
+.login-demo-account span { font-size: 12px; overflow-wrap: anywhere; }
+.login-demo-account code { font: inherit; }
+.login-demo-account:disabled { opacity: .6; cursor: wait; }
