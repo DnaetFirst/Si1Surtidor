@@ -4,7 +4,7 @@ import { Type } from 'class-transformer';
 export class TranscribeReportVoiceDto {
   @IsBase64()
   @MinLength(4)
-  @MaxLength(96000)
+  @MaxLength(288000)
   data!: string;
 
   @IsIn(['audio/webm', 'audio/ogg', 'audio/m4a'])

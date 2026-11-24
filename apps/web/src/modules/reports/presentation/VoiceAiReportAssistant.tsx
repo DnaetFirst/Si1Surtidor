@@ -12,10 +12,13 @@ import {
 interface VoiceCapture {
   recorder?: MediaRecorder;
   timer?: number;
+  pointerId?: number;
+  detachInputListeners?: () => void;
 }
 
 const AUDIO_FORMATS = ['audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/mp4'];
-const MAX_RECORDING_MS = 10000;
+const MAX_RECORDING_MS = 30000;
+const MAX_AUDIO_BYTES = 216000;
 
 function readAudio(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -116,7 +119,7 @@ export function VoiceAiReportAssistant({
   onDownload,
 }: Props) {
   const [prompt, setPrompt] = useState('');
-  const [voicePhase, setVoicePhase] = useState<'idle' | 'requesting' | 'listening' | 'transcribing'>('idle');
+  const [voicePhase, setVoicePhase] = useState<'idle' | 'requesting' | 'listening' | 'limit' | 'transcribing'>('idle');
   const listening = voicePhase === 'listening';
   const [speakBack, setSpeakBack] = useState(true);
   const [speaking, setSpeaking] = useState(false);
@@ -128,6 +131,15 @@ export function VoiceAiReportAssistant({
   const [result, setResult] = useState<AiReportResponse | null>(null);
 
   const captureRef = useRef<VoiceCapture>();
+  const cancelRecording = () => {
+    const capture = captureRef.current;
+    captureRef.current = undefined;
+    capture?.detachInputListeners?.();
+    window.clearTimeout(capture?.timer);
+    const recorder = capture?.recorder;
+    if (recorder && recorder.state !== 'inactive') recorder.stop();
+    recorder?.stream.getTracks().forEach(track => track.stop());
+  };
   const recordingFormat = typeof MediaRecorder === 'undefined' ? undefined
     : AUDIO_FORMATS.find(type => MediaRecorder.isTypeSupported(type));
   const speechSupported = Boolean(recordingFormat && navigator.mediaDevices?.getUserMedia);
@@ -141,12 +153,7 @@ export function VoiceAiReportAssistant({
       return;
     }
     return () => {
-      const capture = captureRef.current;
-      captureRef.current = undefined;
-      window.clearTimeout(capture?.timer);
-      const recorder = capture?.recorder;
-      if (recorder?.state === 'recording') recorder.stop();
-      recorder?.stream.getTracks().forEach(track => track.stop());
+      cancelRecording();
       if (ttsSupported) window.speechSynthesis.cancel();
     };
   }, [isOpen, ttsSupported]);
@@ -228,23 +235,50 @@ export function VoiceAiReportAssistant({
   const stopRecording = () => {
     const capture = captureRef.current;
     if (!capture) return;
+    capture.detachInputListeners?.();
     if (!capture.recorder) {
       captureRef.current = undefined;
       setVoicePhase('idle');
       setVoiceNote('Cuando el navegador habilite el micrófono, vuelve a mantener presionado para hablar.');
       return;
     }
-    if (capture.recorder.state === 'recording') {
+    if (capture.recorder.state !== 'inactive') {
       window.clearTimeout(capture.timer);
       setVoicePhase('transcribing');
       capture.recorder.stop();
     }
   };
 
-  const startRecording = async () => {
+  const startRecording = async (pointerId?: number) => {
     if (!recordingFormat || !speechSupported || loading || captureRef.current) return;
-    const capture: VoiceCapture = {};
+    const capture: VoiceCapture = { pointerId };
     captureRef.current = capture;
+    if (pointerId !== undefined) {
+      const onRelease = (event: PointerEvent) => {
+        if (event.pointerId === capture.pointerId && (event.buttons & 1) === 0) stopRecording();
+      };
+      const onCancel = (event: PointerEvent) => {
+        if (event.pointerId !== capture.pointerId) return;
+        cancelRecording();
+        setVoicePhase('idle');
+        setVoiceNote('La pulsación se interrumpió. Vuelve a mantener presionado para hablar.');
+      };
+      const onBlur = () => {
+        if (capture.recorder?.state === 'inactive' || !capture.recorder) return;
+        cancelRecording();
+        setVoicePhase('idle');
+      };
+      window.addEventListener('pointerup', onRelease, true);
+      window.addEventListener('pointermove', onRelease, true);
+      window.addEventListener('pointercancel', onCancel, true);
+      window.addEventListener('blur', onBlur);
+      capture.detachInputListeners = () => {
+        window.removeEventListener('pointerup', onRelease, true);
+        window.removeEventListener('pointermove', onRelease, true);
+        window.removeEventListener('pointercancel', onCancel, true);
+        window.removeEventListener('blur', onBlur);
+      };
+    }
     setError(null);
     setVoiceNote(null);
     setVoicePhase('requesting');
@@ -266,11 +300,13 @@ export function VoiceAiReportAssistant({
         window.clearTimeout(capture.timer);
         recorder.stream.getTracks().forEach(track => track.stop());
         if (captureRef.current !== capture) return;
+        capture.detachInputListeners?.();
         captureRef.current = undefined;
         setVoicePhase('idle');
         setVoiceNote('Se interrumpió la grabación. Vuelve a mantener presionado el micrófono.');
       };
       recorder.onstop = async () => {
+        capture.detachInputListeners?.();
         window.clearTimeout(capture.timer);
         recorder.stream.getTracks().forEach(track => track.stop());
         if (captureRef.current !== capture) return;
@@ -283,7 +319,7 @@ export function VoiceAiReportAssistant({
             setVoiceNote('Mantén presionado el micrófono mientras hablas.');
             return;
           }
-          if (blob.size > 72000) {
+          if (blob.size > MAX_AUDIO_BYTES) {
             setVoiceNote('La grabación es demasiado grande. Intenta con una frase más corta.');
             return;
           }
@@ -310,10 +346,18 @@ export function VoiceAiReportAssistant({
       };
       recorder.start();
       setVoicePhase('listening');
-      capture.timer = window.setTimeout(stopRecording, MAX_RECORDING_MS);
+      capture.timer = window.setTimeout(() => {
+        if (captureRef.current !== capture || recorder.state !== 'recording') return;
+        recorder.pause();
+        setVoicePhase('limit');
+        setVoiceNote(pointerId === undefined
+          ? 'Llegaste a 30 segundos. Activa el botón de nuevo para transcribir.'
+          : 'Llegaste a 30 segundos. Suelta el botón para transcribir.');
+      }, MAX_RECORDING_MS);
     } catch (err) {
       stream?.getTracks().forEach(track => track.stop());
       if (captureRef.current !== capture) return;
+      capture.detachInputListeners?.();
       captureRef.current = undefined;
       setVoicePhase('idle');
       setVoiceNote(err instanceof DOMException && err.name === 'NotAllowedError'
@@ -483,12 +527,9 @@ export function VoiceAiReportAssistant({
           onPointerDown={event => {
             if (!event.isPrimary || event.button !== 0) return;
             event.currentTarget.setPointerCapture(event.pointerId);
-            void startRecording();
+            void startRecording(event.pointerId);
           }}
-          onPointerUp={stopRecording}
           onContextMenu={event => event.preventDefault()}
-          onPointerCancel={stopRecording}
-          onLostPointerCapture={stopRecording}
           onClick={event => {
             if (event.detail !== 0) return;
             if (captureRef.current) stopRecording();
@@ -508,6 +549,8 @@ export function VoiceAiReportAssistant({
             <>
               <Square size={14} /> Escuchando…
             </>
+          ) : voicePhase === 'limit' ? (
+            'Grabación lista'
           ) : voicePhase === 'requesting' ? (
             'Abriendo micrófono…'
           ) : voicePhase === 'transcribing' ? (

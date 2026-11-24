@@ -2,7 +2,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder,SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
-import { Request,Response } from 'express';
+import { json, Request, Response } from 'express';
 import helmet from 'helmet';
 import { AppModule } from './app/app.module';
 import './infrastructure/config';
@@ -14,6 +14,7 @@ async function bootstrap() {
   if (process.env.TRUST_PROXY === 'true') express.set('trust proxy', 1);
   app.use(helmet({ contentSecurityPolicy: false }));
   app.use(cookieParser());
+  express.post('/api/reportes/voz/transcribir', json({ limit: '300kb' }));
   app.use((req: Request, res: Response, next: () => void) => { res.setHeader('Cache-Control', 'no-store'); next(); });
   app.enableCors({ origin: (process.env.WEB_ORIGIN ?? 'http://localhost:5173').split(',').map(s => s.trim()), credentials: true });
   app.setGlobalPrefix('api');
