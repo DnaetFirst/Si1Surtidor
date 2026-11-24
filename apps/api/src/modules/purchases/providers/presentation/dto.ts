@@ -1,8 +1,27 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Transform } from 'class-transformer';
-import { IsBoolean, IsNotEmpty, IsNumber, IsOptional, IsString, MaxLength, Min } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { IsArray, IsBoolean, IsEmail, IsNotEmpty, IsNumber, IsOptional, IsString, MaxLength, Min, ValidateIf, ValidateNested } from 'class-validator';
 
 const trim = ({ value }: { value: unknown }) => typeof value === 'string' ? value.trim() : value;
+
+export class LinkProductDto {
+  @ApiProperty()
+  @IsNumber()
+  @IsNotEmpty()
+  idProducto!: number;
+
+  @ApiProperty()
+  @IsNumber()
+  @Min(0)
+  ultimoPrecio!: number;
+
+  @ApiPropertyOptional({ maxLength: 255 })
+  @Transform(trim)
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  detalle?: string;
+}
 
 export class CreateProviderDto {
   @ApiProperty({ maxLength: 150 })
@@ -42,8 +61,8 @@ export class CreateProviderDto {
 
   @ApiPropertyOptional({ maxLength: 100 })
   @Transform(trim)
-  @IsOptional()
-  @IsString()
+  @ValidateIf((_o, value) => value !== undefined && value !== '')
+  @IsEmail({}, { message: 'El correo del proveedor no tiene un formato válido.' })
   @MaxLength(100)
   correo?: string;
 
@@ -60,6 +79,13 @@ export class CreateProviderDto {
   @IsString()
   @MaxLength(255)
   detalle?: string;
+
+  @ApiPropertyOptional({ type: [LinkProductDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => LinkProductDto)
+  productos?: LinkProductDto[];
 }
 
 export class UpdateProviderDto {
@@ -100,8 +126,8 @@ export class UpdateProviderDto {
 
   @ApiPropertyOptional({ maxLength: 100 })
   @Transform(trim)
-  @IsOptional()
-  @IsString()
+  @ValidateIf((_o, value) => value !== undefined && value !== '')
+  @IsEmail({}, { message: 'El correo del proveedor no tiene un formato válido.' })
   @MaxLength(100)
   correo?: string;
 
@@ -123,23 +149,4 @@ export class UpdateProviderDto {
   @IsOptional()
   @IsBoolean()
   activo?: boolean;
-}
-
-export class LinkProductDto {
-  @ApiProperty()
-  @IsNumber()
-  @IsNotEmpty()
-  idProducto!: number;
-
-  @ApiProperty()
-  @IsNumber()
-  @Min(0)
-  ultimoPrecio!: number;
-
-  @ApiPropertyOptional({ maxLength: 255 })
-  @Transform(trim)
-  @IsOptional()
-  @IsString()
-  @MaxLength(255)
-  detalle?: string;
 }

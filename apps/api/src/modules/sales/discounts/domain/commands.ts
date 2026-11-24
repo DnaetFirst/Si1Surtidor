@@ -3,6 +3,9 @@ export interface CreateDiscountCommand {
   descripcion?: string;
   tipo: 'PORCENTAJE' | 'MONTO_FIJO';
   valor: number;
+  activo?: boolean;
+  fechaInicio?: string | null;
+  fechaFin?: string | null;
   idSucursal?: number;
 }
 
@@ -12,5 +15,7 @@ export interface UpdateDiscountCommand {
   tipo?: 'PORCENTAJE' | 'MONTO_FIJO';
   valor?: number;
   activo?: boolean;
+  fechaInicio?: string | null;
+  fechaFin?: string | null;
   idSucursal?: number;
 }

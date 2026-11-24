@@ -24,3 +24,7 @@ export interface ProviderRecord {
   updatedAt: string;
   productos?: ProviderProductRecord[];
 }
+
+// Alias para diagrama de clases, comunicación y análisis (CU13)
+export type Proveedor = ProviderRecord;
+export type ProveedorProducto = ProviderProductRecord;

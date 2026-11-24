@@ -32,4 +32,10 @@ export class SmtpPasswordResetMailer extends PasswordResetMailer {
             html: `<p>Recibimos una solicitud para restablecer tu contraseña.</p><p><a href="${url.toString()}">Restablecer contraseña</a></p><p>El enlace vence en 30 minutos. Si no solicitaste este cambio, ignora este mensaje.</p>`
         });
     }
+
+    // Alias de trazabilidad con diagramas UML (CU18)
+    sendPasswordResetEmail(email: string, token: string) { return this.send(email, token); }
+    EnviarCorreoSMTP(email: string, token: string) { return this.send(email, token); }
 }
+
+export { SmtpPasswordResetMailer as MailerService };

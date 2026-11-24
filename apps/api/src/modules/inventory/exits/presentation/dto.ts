@@ -21,4 +21,10 @@ export class CreateProductExitDto {
   @IsOptional()
   @IsNumber()
   idLote?: number;
+
+  @ApiPropertyOptional({ description: 'Referencia de documento de origen (ej. NV-000001)', example: 'MERMA-001' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  documentoOrigen?: string;
 }

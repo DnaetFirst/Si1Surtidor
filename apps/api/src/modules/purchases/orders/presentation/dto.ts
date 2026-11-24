@@ -43,6 +43,32 @@ export class CreatePurchaseOrderDto {
   detalles!: CreatePurchaseOrderItemDto[];
 }
 
+export class UpdatePurchaseOrderDto {
+  @ApiPropertyOptional({ description: 'Motivo u observación de la compra' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  motivo?: string;
+
+  @ApiPropertyOptional({ description: 'ID del proveedor sugerido' })
+  @IsOptional()
+  @IsNumber()
+  idProveedor?: number;
+
+  @ApiPropertyOptional({ description: 'ID de la sucursal solicitante' })
+  @IsOptional()
+  @IsNumber()
+  idSucursal?: number;
+
+  @ApiPropertyOptional({ description: 'Lista actualizada de productos', type: [CreatePurchaseOrderItemDto] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => CreatePurchaseOrderItemDto)
+  detalles?: CreatePurchaseOrderItemDto[];
+}
+
 export class UpdatePurchaseOrderStatusDto {
   @ApiProperty({ description: 'Nuevo estado de la orden', enum: ['PENDIENTE', 'APROBADA', 'RECIBIDA', 'ANULADA'], example: 'APROBADA' })
   @IsEnum(['PENDIENTE', 'APROBADA', 'RECIBIDA', 'ANULADA'])

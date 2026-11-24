@@ -152,4 +152,9 @@ export class PostgresProviderRepository extends ProviderRepository {
     const [purchase] = await database(this.db, tx).query(`SELECT 1 FROM nota_compra WHERE id_proveedor = $1 LIMIT 1`, [id]);
     return !!purchase;
   }
+
+  async isProductActive(productId: number, tx?: TransactionContext): Promise<boolean> {
+    const [row] = await database(this.db, tx).query(`SELECT 1 FROM producto WHERE id = $1 AND esta_activo = true`, [productId]);
+    return !!row;
+  }
 }

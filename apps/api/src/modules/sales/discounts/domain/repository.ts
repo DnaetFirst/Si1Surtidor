@@ -11,4 +11,5 @@ export abstract class DiscountRepository {
   abstract update(id: number, cmd: UpdateDiscountCommand, tx?: TransactionContext): Promise<DiscountRecord>;
   abstract toggleActive(id: number, tx?: TransactionContext): Promise<DiscountRecord>;
   abstract remove(id: number, tx?: TransactionContext): Promise<void>;
+  abstract isBranchActive(branchId: number, tx?: TransactionContext): Promise<boolean>;
 }

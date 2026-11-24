@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, ParseIntPipe, Patch, Post, Query, Req } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, ParseIntPipe, Patch, Post, Put, Query, Req } from '@nestjs/common';
 import { ApiCookieAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthRequest } from '../../../../shared/domain/context';
 import { ListQuery } from '../../../../shared/presentation/list-query.dto';
@@ -6,6 +6,9 @@ import { RequirePermissions } from '../../../security/auth/presentation/decorato
 import { DispenserService } from '../application/service';
 import { CreateDispenserDto, CreateHoseDto, UpdateDispenserDto, UpdateHoseDto } from './dto';
 
+/**
+ * CU7. Gestionar dispensadores (Diagrama de Comunicación / Análisis / Secuencia: DispenserController).
+ */
 @ApiTags('Dispensadores')
 @ApiCookieAuth()
 @Controller('dispensadores')
@@ -37,6 +40,13 @@ export class DispensersController {
   @RequirePermissions('dispensadores.gestionar', 'dispensadores.editar')
   @ApiOperation({ summary: 'Modificar datos del dispensador.' })
   modificar(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateDispenserDto, @Req() req: AuthRequest) {
+    return this.service.modificar(id, dto, req);
+  }
+
+  @Put(':id')
+  @RequirePermissions('dispensadores.gestionar', 'dispensadores.editar')
+  @ApiOperation({ summary: 'Actualizar dispensador (alias PUT de diagrama de secuencia CU7).' })
+  actualizarPut(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateDispenserDto, @Req() req: AuthRequest) {
     return this.service.modificar(id, dto, req);
   }
 
@@ -75,6 +85,18 @@ export class DispensersController {
   deshabilitarManguera(@Param('hoseId', ParseIntPipe) hoseId: number, @Req() req: AuthRequest) {
     return this.service.deshabilitarManguera(hoseId, req);
   }
+
+  // Alias de métodos para trazabilidad con diagramas UML (CU7)
+  Crear(dto: CreateDispenserDto, req: AuthRequest) { return this.crear(dto, req); }
+  Modificar(id: number, dto: UpdateDispenserDto, req: AuthRequest) { return this.modificar(id, dto, req); }
+  Eliminar(id: number, req: AuthRequest) { return this.eliminar(id, req); }
+  Obtener(query: ListQuery, req: AuthRequest) { return this.obtener(query, req); }
+  AgregarDispensador(dto: CreateDispenserDto, req: AuthRequest) { return this.crear(dto, req); }
+  ModificarDispensador(id: number, dto: UpdateDispenserDto, req: AuthRequest) { return this.modificar(id, dto, req); }
+  EliminarDispensador(id: number, req: AuthRequest) { return this.eliminar(id, req); }
+  ObtenerDispensador(query: ListQuery, req: AuthRequest) { return this.obtener(query, req); }
 }
 
+// Alias exactos para documentación y defensa (CU7)
 export { DispensersController as ControladorDispensador };
+export { DispensersController as DispenserController };

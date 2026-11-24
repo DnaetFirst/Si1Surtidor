@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { TransactionContext } from '../../../../shared/domain/context';
+import { ConflictException } from '../../../../shared/domain/errors';
 import { ListQuery, PageResult } from '../../../../shared/domain/pagination';
 import { database } from '../../../../shared/infrastructure/persistence/transaction';
 import { filters, page } from '../../../../shared/infrastructure/persistence/pagination';
@@ -12,7 +13,7 @@ const saleFields = `
   nv.id, nv.codigo, nv.nombre_cliente AS "nombreCliente", nv.nit, nv.placa,
   nv.metodo_pago AS "metodoPago", nv.monto_pagado AS "montoPagado",
   nv.monto_por_cobrar AS "montoPorCobrar", nv.monto_cambio AS "montoCambio",
-  nv.fecha, nv.hora, nv.estado_b_sisa AS "estadoBSisa",
+  nv.fecha, nv.hora, nv.estado, nv.estado_b_sisa AS "estadoBSisa",
   nv.ci_usuario AS "ciUsuario", u.nombre AS "usuarioNombre",
   nv.id_dispensador AS "idDispensador", d.ubicacion AS "dispensadorUbicacion",
   nv.id_sucursal AS "idSucursal", s.nombre AS "sucursalNombre",
@@ -183,18 +184,97 @@ export class PostgresSaleRepository extends SaleRepository {
     };
   }
 
-  async create(cmd: CreateSaleCommand, ciUsuario: string, tx?: TransactionContext): Promise<SaleRecord> {
-    const code = cmd.codigo || (await this.generateNextCode(tx));
-
-    // Calculate subtotal and discounts
-    let total = 0;
-    for (const d of cmd.detalles) {
-      total += Number(d.cantidad) * Number(d.precio);
+  async validateSaleInput(cmd: CreateSaleCommand, tx?: TransactionContext): Promise<void> {
+    const db = database(this.db, tx);
+    const [branch] = await db.query(`SELECT id, activo FROM sucursal WHERE id = $1`, [cmd.idSucursal]);
+    if (!branch || !branch.activo) {
+      throw new ConflictException('La sucursal seleccionada no existe o está inactiva.');
     }
 
-    const montoPagado = Number(cmd.montoPagado) || total;
-    const montoCambio = Math.max(0, montoPagado - total);
-    const montoPorCobrar = Math.max(0, total - montoPagado);
+    if (cmd.idDispensador) {
+      const [disp] = await db.query(`SELECT id, esta_activo FROM dispensador WHERE id = $1`, [cmd.idDispensador]);
+      if (!disp || !disp.esta_activo) {
+        throw new ConflictException('El dispensador seleccionado no existe o está inhabilitado.');
+      }
+    }
+
+    const requestedByProduct = new Map<number, number>();
+    for (const d of cmd.detalles) {
+      if (d.idManguera) {
+        const [hose] = await db.query(
+          `SELECT m.id, m.esta_activo, disp.esta_activo AS dispensador_activo
+           FROM manguera m
+           JOIN dispensador disp ON disp.id = m.id_dispensador
+           WHERE m.id = $1`,
+          [d.idManguera]
+        );
+        if (!hose || !hose.esta_activo || !hose.dispensador_activo) {
+          throw new ConflictException('La manguera o dispensador seleccionado está inhabilitado.');
+        }
+      }
+      if (d.idProducto) {
+        requestedByProduct.set(d.idProducto, (requestedByProduct.get(d.idProducto) || 0) + Number(d.cantidad));
+      }
+      if (d.idDescuento) {
+        const [disc] = await db.query(
+          `SELECT id, activo, fecha_inicio, fecha_fin FROM descuento WHERE id = $1`,
+          [d.idDescuento]
+        );
+        if (!disc || !disc.activo) {
+          throw new ConflictException('El descuento aplicado no existe o está inactivo.');
+        }
+        const today = new Date().toISOString().split('T')[0];
+        if ((disc.fecha_inicio && String(disc.fecha_inicio).slice(0, 10) > today) ||
+            (disc.fecha_fin && String(disc.fecha_fin).slice(0, 10) < today)) {
+          throw new ConflictException('El descuento seleccionado se encuentra fuera de vigencia.');
+        }
+      }
+    }
+
+    for (const [productId, requestedQty] of requestedByProduct.entries()) {
+      const [prod] = await db.query(
+        `SELECT id, nombre, stock, esta_activo FROM producto WHERE id = $1 FOR UPDATE`,
+        [productId]
+      );
+      if (!prod || !prod.esta_activo) {
+        throw new ConflictException(`El producto #${productId} no existe o está inactivo.`);
+      }
+      if (Number(prod.stock) < requestedQty) {
+        throw new ConflictException(`Stock insuficiente para ${prod.nombre}: disponible ${prod.stock}, solicitado ${requestedQty}.`);
+      }
+    }
+  }
+
+  async create(cmd: CreateSaleCommand, ciUsuario: string, tx?: TransactionContext): Promise<SaleRecord> {
+    const db = database(this.db, tx);
+    const code = cmd.codigo || (await this.generateNextCode(tx));
+
+    // Calculate subtotals applying valid discounts per item (CU11 opt: consultarDescuentoVigente)
+    const computedLines: { item: (typeof cmd.detalles)[number]; subtotal: number }[] = [];
+    let total = 0;
+
+    for (const d of cmd.detalles) {
+      const rawSubtotal = Number(d.cantidad) * Number(d.precio);
+      let lineSubtotal = rawSubtotal;
+
+      if (d.idDescuento) {
+        const [disc] = await db.query(`SELECT tipo, valor FROM descuento WHERE id = $1 AND activo = true`, [d.idDescuento]);
+        if (disc) {
+          const val = Number(disc.valor || 0);
+          lineSubtotal = disc.tipo === 'PORCENTAJE'
+            ? Math.max(0, rawSubtotal * (1 - val / 100))
+            : Math.max(0, rawSubtotal - val);
+        }
+      }
+      lineSubtotal = Math.round(lineSubtotal * 100) / 100;
+      total += lineSubtotal;
+      computedLines.push({ item: d, subtotal: lineSubtotal });
+    }
+    total = Math.round(total * 100) / 100;
+
+    const montoPagado = cmd.montoPagado !== undefined ? Number(cmd.montoPagado) : total;
+    const montoCambio = Math.max(0, Math.round((montoPagado - total) * 100) / 100);
+    const montoPorCobrar = Math.max(0, Math.round((total - montoPagado) * 100) / 100);
 
     // Register or find customer
     let clienteId: number | null = null;
@@ -209,13 +289,13 @@ export class PostgresSaleRepository extends SaleRepository {
       clienteId = customer.id;
     }
 
-    const rows = await database(this.db, tx).query(
+    const rows = await db.query(
       `INSERT INTO nota_venta (
          codigo, nombre_cliente, nit, placa, metodo_pago,
          monto_pagado, monto_por_cobrar, monto_cambio,
-         estado_b_sisa, ci_usuario, id_dispensador, id_sucursal, id_cliente
+         estado, estado_b_sisa, ci_usuario, id_dispensador, id_sucursal, id_cliente
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'EMITIDA', $9, $10, $11, $12, $13)
        RETURNING id`,
       [
         code,
@@ -236,20 +316,46 @@ export class PostgresSaleRepository extends SaleRepository {
     const saleId = Number(rows[0].id);
 
     // Insert details (Postgres trigger trg_actualizar_stock_venta fires for each product item automatically)
-    for (const d of cmd.detalles) {
+    for (const { item: d, subtotal } of computedLines) {
       const qty = Number(d.cantidad);
       const prc = Number(d.precio);
-      const sub = qty * prc;
 
-      await database(this.db, tx).query(
+      await db.query(
         `INSERT INTO detalle_venta (cantidad, precio, subtotal, id_nota_venta, id_manguera, id_producto, id_descuento)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [qty, prc, sub, saleId, d.idManguera || null, d.idProducto || null, d.idDescuento || null]
+        [qty, prc, subtotal, saleId, d.idManguera || null, d.idProducto || null, d.idDescuento || null]
       );
     }
 
     const created = await this.findById(saleId, tx);
     return created!;
+  }
+
+  async annul(id: number, ciUsuario: string, tx?: TransactionContext): Promise<SaleRecord> {
+    const db = database(this.db, tx);
+    const sale = await this.findById(id, tx);
+    if (!sale) throw new ConflictException('Nota de venta no encontrada.');
+    if (sale.estado === 'ANULADA') {
+      throw new ConflictException('La nota de venta ya fue anulada.');
+    }
+
+    await db.query(`UPDATE nota_venta SET estado = 'ANULADA' WHERE id = $1`, [id]);
+
+    for (const d of sale.detalles || []) {
+      if (d.idProducto) {
+        await db.query(
+          `UPDATE producto SET stock = stock + $1, updated_at = now() WHERE id = $2`,
+          [d.cantidad, d.idProducto]
+        );
+        await db.query(
+          `INSERT INTO salida_producto (motivo, cantidad, estado, documento_origen, id_producto, id_nota_venta, ci_usuario, id_sucursal)
+           VALUES ($1, $2, 'REVERSA', $3, $4, $5, $6, $7)`,
+          [`Anulación de venta ${sale.codigo}`, d.cantidad, sale.codigo, d.idProducto, sale.id, ciUsuario, sale.idSucursal]
+        );
+      }
+    }
+
+    return (await this.findById(id, tx))!;
   }
 
   private mapSaleRow(row: any): SaleRecord {
@@ -265,6 +371,7 @@ export class PostgresSaleRepository extends SaleRepository {
       montoCambio: Number(row.montoCambio || 0),
       fecha: typeof row.fecha === 'string' ? row.fecha : row.fecha?.toISOString?.()?.split('T')[0] ?? '',
       hora: row.hora || '',
+      estado: row.estado || 'EMITIDA',
       estadoBSisa: Boolean(row.estadoBSisa),
       ciUsuario: row.ciUsuario,
       usuarioNombre: row.usuarioNombre || '',

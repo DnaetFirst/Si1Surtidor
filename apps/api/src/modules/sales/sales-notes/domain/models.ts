@@ -37,6 +37,7 @@ export interface SaleRecord {
   montoCambio: number;
   fecha: string;
   hora: string;
+  estado?: string;
   estadoBSisa: boolean;
   ciUsuario: string;
   usuarioNombre?: string;
@@ -49,3 +50,8 @@ export interface SaleRecord {
   totalVenta?: number;
   createdAt: Date;
 }
+
+// Alias para diagrama de clases, comunicación y análisis (CU11)
+export type Venta = SaleRecord;
+export type DetalleVenta = SaleDetailRecord;
+export type Cliente = CustomerRecord;

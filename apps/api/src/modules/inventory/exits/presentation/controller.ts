@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Post, Query, Req } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, ParseIntPipe, Post, Query, Req } from '@nestjs/common';
 import { ApiCookieAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthRequest } from '../../../../shared/domain/context';
 import { ListQuery } from '../../../../shared/presentation/list-query.dto';
@@ -6,6 +6,9 @@ import { RequirePermissions } from '../../../security/auth/presentation/decorato
 import { ProductExitService } from '../application/service';
 import { CreateProductExitDto } from './dto';
 
+/**
+ * CU19. Gestionar salidas de productos (Diagramas UML: OutputController / ControlSalida).
+ */
 @ApiTags('Inventario - Salidas de Productos')
 @ApiCookieAuth()
 @Controller('inventario/salidas')
@@ -32,6 +35,23 @@ export class ProductExitsController {
   crear(@Body() dto: CreateProductExitDto, @Req() req: AuthRequest) {
     return this.service.registrarSalida(dto, req);
   }
+
+  @Post(':id/revertir')
+  @HttpCode(200)
+  @RequirePermissions('salidas.gestionar', 'salidas.deshabilitar')
+  @ApiOperation({ summary: 'Anular salida confirmada mediante movimiento inverso autorizado.' })
+  revertirSalida(@Param('id', ParseIntPipe) id: number, @Req() req: AuthRequest) {
+    return this.service.revertirSalida(id, req);
+  }
+
+  // Alias de métodos para trazabilidad con diagramas UML (CU19)
+  Crear(dto: CreateProductExitDto, req: AuthRequest) { return this.crear(dto, req); }
+  Obtener(query: ListQuery, sucursalId?: number) { return this.obtener(query, sucursalId); }
+  Mostrar(query: ListQuery, sucursalId?: number) { return this.obtener(query, sucursalId); }
+  registrarSalida(dto: CreateProductExitDto, req: AuthRequest) { return this.crear(dto, req); }
 }
 
+// Alias exactos para documentación y defensa (CU19)
 export const ControladorSalidaProducto = ProductExitsController;
+export const OutputController = ProductExitsController;
+export const ControlSalida = ProductExitsController;

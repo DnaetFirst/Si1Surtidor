@@ -11,6 +11,13 @@ export interface CreatePurchaseOrderCommand {
   detalles: CreatePurchaseOrderItemCommand[];
 }
 
+export interface UpdatePurchaseOrderCommand {
+  motivo?: string;
+  idProveedor?: number;
+  idSucursal?: number;
+  detalles?: CreatePurchaseOrderItemCommand[];
+}
+
 export interface UpdatePurchaseOrderStatusCommand {
   estado: 'PENDIENTE' | 'APROBADA' | 'RECIBIDA' | 'ANULADA';
   motivo?: string;

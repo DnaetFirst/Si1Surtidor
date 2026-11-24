@@ -6,6 +6,9 @@ import { CreateSaleCommand } from '../domain/commands';
 import { CustomerRecord, SaleRecord } from '../domain/models';
 import { SaleRepository } from '../domain/repository';
 
+/**
+ * CU11. Gestionar ventas (Actores: Empleado, Gerente de Sucursal, Cliente).
+ */
 @Injectable()
 export class SaleService {
   constructor(
@@ -27,6 +30,10 @@ export class SaleService {
     return this.repository.listCustomers(query);
   }
 
+  async validarStock(dto: CreateSaleCommand, tx?: TransactionContext): Promise<void> {
+    await this.repository.validateSaleInput(dto, tx);
+  }
+
   async crear(dto: CreateSaleCommand, req: AuthRequest): Promise<SaleRecord> {
     if (!dto.detalles || dto.detalles.length === 0) {
       throw new BadRequestException('La venta debe incluir al menos un producto o combustible.');
@@ -40,9 +47,24 @@ export class SaleService {
     }
 
     return this.transactions.mutation(req, 'ventas.crear', 'nota_venta', async tx => {
+      await this.validarStock(dto, tx);
       return this.repository.create(dto, req.user.ci, tx);
     });
   }
+
+  async anular(id: number, req: AuthRequest): Promise<SaleRecord> {
+    return this.transactions.mutation(req, 'ventas.deshabilitar', 'nota_venta', async tx => {
+      await this.obtenerPorId(id, tx);
+      return this.repository.annul(id, req.user.ci, tx);
+    });
+  }
+
+  // Alias de trazabilidad con diagramas UML (CU11)
+  procesarVenta(dto: CreateSaleCommand, req: AuthRequest) { return this.crear(dto, req); }
+  crearVenta(dto: CreateSaleCommand, req: AuthRequest) { return this.crear(dto, req); }
+  listarVentas(query: ListQuery, branchId?: number) { return this.obtener(query, branchId); }
+  anularVenta(id: number, req: AuthRequest) { return this.anular(id, req); }
 }
 
 export const ServicioNotaVenta = SaleService;
+export const ServicioVenta = SaleService;

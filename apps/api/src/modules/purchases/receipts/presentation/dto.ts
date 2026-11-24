@@ -76,3 +76,17 @@ export class CreatePurchaseReceiptDto {
   @Type(() => CreatePurchaseReceiptItemDto)
   detalles!: CreatePurchaseReceiptItemDto[];
 }
+
+export class UpdatePurchaseReceiptDto {
+  @ApiPropertyOptional({ description: 'Motivo o glosa actualizada de la compra' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  motivo?: string;
+
+  @ApiPropertyOptional({ description: 'Moneda utilizada' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  moneda?: string;
+}

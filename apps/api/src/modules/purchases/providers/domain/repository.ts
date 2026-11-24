@@ -16,4 +16,5 @@ export abstract class ProviderRepository {
   abstract linkProduct(providerId: number, data: LinkProductCommand, tx: TransactionContext): Promise<ProviderProductRecord>;
   abstract unlinkProduct(providerId: number, productId: number, tx: TransactionContext): Promise<void>;
   abstract hasOrdersOrPurchases(id: number, tx?: TransactionContext): Promise<boolean>;
+  abstract isProductActive(productId: number, tx?: TransactionContext): Promise<boolean>;
 }

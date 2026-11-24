@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, ParseIntPipe, Patch, Post, Query, Req } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, ParseIntPipe, Patch, Post, Put, Query, Req } from '@nestjs/common';
 import { ApiCookieAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthRequest } from '../../../../shared/domain/context';
 import { ListQuery } from '../../../../shared/presentation/list-query.dto';
@@ -6,6 +6,9 @@ import { RequirePermissions } from '../../../security/auth/presentation/decorato
 import { ProviderService } from '../application/service';
 import { CreateProviderDto, LinkProductDto, UpdateProviderDto } from './dto';
 
+/**
+ * CU13. Gestionar proveedores (Diagramas UML: ProviderController / ProveedorController / SupplierController).
+ */
 @ApiTags('Proveedores')
 @ApiCookieAuth()
 @Controller('proveedores')
@@ -40,6 +43,13 @@ export class ProvidersController {
     return this.service.modificar(id, dto, req);
   }
 
+  @Put(':id')
+  @RequirePermissions('proveedores.gestionar', 'proveedores.editar')
+  @ApiOperation({ summary: 'Actualizar proveedor (alias PUT de diagrama de secuencia CU13).' })
+  actualizarPut(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateProviderDto, @Req() req: AuthRequest) {
+    return this.service.modificar(id, dto, req);
+  }
+
   @Patch(':id/estado')
   @RequirePermissions('proveedores.gestionar', 'proveedores.editar')
   @ApiOperation({ summary: 'Alternar estado activo/inactivo del proveedor.' })
@@ -50,16 +60,16 @@ export class ProvidersController {
   @Post(':id/deshabilitar')
   @HttpCode(200)
   @RequirePermissions('proveedores.gestionar', 'proveedores.deshabilitar')
-  @ApiOperation({ summary: 'Deshabilitar proveedor.' })
+  @ApiOperation({ summary: 'Deshabilitar proveedor conservando historial.' })
   deshabilitar(@Param('id', ParseIntPipe) id: number, @Req() req: AuthRequest) {
     return this.service.deshabilitar(id, req);
   }
 
   @Delete(':id')
   @RequirePermissions('proveedores.gestionar', 'proveedores.deshabilitar')
-  @ApiOperation({ summary: 'Deshabilitar proveedor mediante DELETE.' })
+  @ApiOperation({ summary: 'Eliminar proveedor solo si no tiene operaciones relacionadas.' })
   eliminar(@Param('id', ParseIntPipe) id: number, @Req() req: AuthRequest) {
-    return this.service.deshabilitar(id, req);
+    return this.service.eliminar(id, req);
   }
 
   @Post(':id/productos')
@@ -87,6 +97,21 @@ export class ProvidersController {
   ) {
     return this.service.desvincularProducto(id, productoId, req);
   }
+
+  // Alias de métodos para trazabilidad con diagramas UML (CU13)
+  Crear(dto: CreateProviderDto, req: AuthRequest) { return this.crear(dto, req); }
+  Modificar(id: number, dto: UpdateProviderDto, req: AuthRequest) { return this.modificar(id, dto, req); }
+  Eliminar(id: number, req: AuthRequest) { return this.eliminar(id, req); }
+  Obtener(query: ListQuery) { return this.obtener(query); }
+  Mostrar(query: ListQuery) { return this.obtener(query); }
+  AgregarProveedor(dto: CreateProviderDto, req: AuthRequest) { return this.crear(dto, req); }
+  ModificarProveedor(id: number, dto: UpdateProviderDto, req: AuthRequest) { return this.modificar(id, dto, req); }
+  EliminarProveedor(id: number, req: AuthRequest) { return this.eliminar(id, req); }
+  ObtenerProveedor(query: ListQuery) { return this.obtener(query); }
 }
 
+// Alias exactos para documentación y defensa (CU13)
 export { ProvidersController as ControladorProveedor };
+export { ProvidersController as ProviderController };
+export { ProvidersController as ProveedorController };
+export { ProvidersController as SupplierController };

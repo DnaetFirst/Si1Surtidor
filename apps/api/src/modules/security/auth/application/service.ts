@@ -60,7 +60,7 @@ export class AuthService {
                 retryAfterSeconds: outcome.retryAfterSeconds }, outcome.error!);
         return outcome;
     }
-    async requestPasswordReset(correo: string) {
+    async requestPasswordReset(correo: string, req?: RequestContext) {
         const [user] = await this.repository.passwordResetIdentity(correo.trim().toLowerCase());
         if (!user)
             return;
@@ -69,6 +69,9 @@ export class AuthService {
         await this.unitOfWork.transaction(async tx => {
             await this.repository.invalidatePasswordResets(user.ci, tx);
             await this.repository.createPasswordReset(user.ci, tokenHash, new Date(Date.now() + 30 * 60 * 1000), tx);
+            if (req) {
+                await this.auditWriter.authentication(req, 'AUTH_PASSWORD_RECOVERY', 'SUCCESS', { ci: user.ci, nombre: user.correo }, user.correo, tx);
+            }
         });
         try {
             await this.passwordResetMailer.send(user.correo, token);
@@ -77,6 +80,9 @@ export class AuthService {
             this.logger.error('No se pudo enviar un correo de restablecimiento de contraseña.', error instanceof Error ? error.stack : undefined);
         }
     }
+
+    // Alias de trazabilidad con diagramas UML (CU18)
+    GenerarTokenReset(correo: string, req?: RequestContext) { return this.requestPasswordReset(correo, req); }
     async resetPassword(token: string, password: string) {
         const tokenHash = this.tokens.digest(token);
         const passwordHash = await this.passwords.hash(password);

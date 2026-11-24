@@ -188,4 +188,20 @@ export class PostgresDispenserRepository extends DispenserRepository {
     );
     return full;
   }
+
+  async isBranchActive(branchId: number, tx?: TransactionContext): Promise<boolean> {
+    const [row] = await database(this.db, tx).query(
+      `SELECT 1 FROM sucursal WHERE id = $1 AND activo = true`,
+      [branchId]
+    );
+    return !!row;
+  }
+
+  async isFuelActive(fuelId: number, tx?: TransactionContext): Promise<boolean> {
+    const [row] = await database(this.db, tx).query(
+      `SELECT 1 FROM combustible WHERE id = $1 AND esta_activo = true`,
+      [fuelId]
+    );
+    return !!row;
+  }
 }

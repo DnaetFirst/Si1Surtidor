@@ -104,8 +104,15 @@ export class AuthController {
         this.resetAttempts.set(key, rate);
         if (++rate.total > 5)
             throw new HttpException('Demasiadas solicitudes. Intenta nuevamente más tarde.', 429);
-        await this.auth.requestPasswordReset(dto.correo);
+        await this.auth.requestPasswordReset(dto.correo, req);
         return { message: 'Si existe una cuenta asociada a ese correo, recibirás un enlace para restablecer la contraseña.' };
+    }
+    @Public()
+    @Post('password-recovery')
+    @HttpCode(200)
+    @ApiOperation({ summary: 'Alias de diagrama de comunicación/secuencia CU18 para recuperación por SMTP.' })
+    solicitarRecuperacion(@Body() dto: PasswordResetRequestDto, @Req() req: Request) {
+        return this.requestPasswordReset(dto, req);
     }
     @Public()
     @Post('password-reset/complete')
@@ -153,4 +160,10 @@ export class AuthController {
         for (const name of ['access_token', 'refresh_token', 'csrf_token'])
             res.clearCookie(name, { path: '/', httpOnly: true, sameSite: 'lax', secure: process.env.COOKIE_SECURE === 'true' });
     }
+
+    // Alias de métodos para trazabilidad con diagramas UML (CU18)
+    GenerarTokenReset(dto: PasswordResetRequestDto, req: Request) { return this.requestPasswordReset(dto, req); }
+    RegistrarNotificacion(dto: PasswordResetRequestDto, req: Request) { return this.requestPasswordReset(dto, req); }
 }
+
+export { AuthController as AuthCtrl };

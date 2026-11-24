@@ -26,20 +26,23 @@ export class NotificationsController {
   }
 
   @Post(':id/leida')
-  @HttpCode(204)
+  @HttpCode(200)
   @RequirePermissions('notificaciones.gestionar', 'notificaciones.ver')
   @ApiOperation({ summary: 'Marcar alerta como leída por el usuario actual.' })
-  marcarLeida(@Param('id', ParseIntPipe) id: number, @Req() req: AuthRequest) {
-    return this.service.marcarLeida(id, req);
+  async marcarLeida(@Param('id', ParseIntPipe) id: number, @Req() req: AuthRequest) {
+    await this.service.marcarLeida(id, req);
+    return { ok: true };
   }
 
   @Patch(':id/resolver')
-  @HttpCode(204)
+  @HttpCode(200)
   @RequirePermissions('notificaciones.gestionar')
   @ApiOperation({ summary: 'Resolver definitivamente una alerta de stock.' })
-  resolver(@Param('id', ParseIntPipe) id: number, @Req() req: AuthRequest) {
-    return this.service.resolver(id, req);
+  async resolver(@Param('id', ParseIntPipe) id: number, @Req() req: AuthRequest) {
+    await this.service.resolver(id, req);
+    return { ok: true };
   }
 }
 
 export const ControladorNotificacion = NotificationsController;
+export const NotificacionController = NotificationsController;

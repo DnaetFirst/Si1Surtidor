@@ -16,3 +16,8 @@ export interface CreatePurchaseReceiptCommand {
   idOrden?: number;
   detalles: CreatePurchaseReceiptItemCommand[];
 }
+
+export interface UpdatePurchaseReceiptCommand {
+  motivo?: string;
+  moneda?: string;
+}

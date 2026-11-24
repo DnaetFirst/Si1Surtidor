@@ -3,4 +3,5 @@ export interface CreateProductExitCommand {
   cantidad: number;
   idProducto: number;
   idLote?: number;
+  documentoOrigen?: string;
 }

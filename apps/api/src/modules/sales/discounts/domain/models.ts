@@ -8,8 +8,14 @@ export interface DiscountRecord {
   porcentaje: number;
   activo: boolean;
   estaActivo: boolean;
+  fechaInicio?: string | null;
+  fechaFin?: string | null;
   idSucursal?: number | null;
   sucursalNombre?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
+
+// Alias para diagrama de clases, comunicación y análisis (CU12)
+export type Descuento = DiscountRecord;
+export type Discount = DiscountRecord;

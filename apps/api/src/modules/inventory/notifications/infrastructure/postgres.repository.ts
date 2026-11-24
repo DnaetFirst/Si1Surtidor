@@ -22,6 +22,8 @@ export class PostgresNotificationRepository extends NotificationRepository {
 
   async list(query: ListQuery, ciUsuario?: string, tx?: TransactionContext): Promise<PageResult<ProductNotificationRecord>> {
     const { params, where } = filters(query);
+    params.push(ciUsuario || '');
+    const userParamIndex = params.length;
     if (query.q) {
       params.push(`%${query.q}%`);
       where.push(`(n.titulo ILIKE $${params.length} OR n.descripcion ILIKE $${params.length} OR p.nombre ILIKE $${params.length})`);
@@ -30,7 +32,7 @@ export class PostgresNotificationRepository extends NotificationRepository {
     const joinClause = `
       notificacion_producto n
       JOIN producto p ON p.id = n.id_producto
-      LEFT JOIN usuario_notificacion un ON un.id_notificacion = n.id AND un.ci_usuario = '${ciUsuario?.replace(/'/g, "''") || ''}'
+      LEFT JOIN usuario_notificacion un ON un.id_notificacion = n.id AND un.ci_usuario = $${userParamIndex}
     `;
 
     const result = await page(
@@ -52,12 +54,18 @@ export class PostgresNotificationRepository extends NotificationRepository {
   }
 
   async markAsRead(id: number, ciUsuario: string, tx?: TransactionContext): Promise<void> {
-    await database(this.db, tx).query(
-      `INSERT INTO usuario_notificacion (visto, ci_usuario, id_notificacion)
-       VALUES (true, $1, $2)
-       ON CONFLICT DO NOTHING`,
+    const db = database(this.db, tx);
+    const updated = await db.query(
+      `UPDATE usuario_notificacion SET visto = true WHERE ci_usuario = $1 AND id_notificacion = $2 RETURNING id`,
       [ciUsuario, id]
     );
+    if (!updated.length) {
+      await db.query(
+        `INSERT INTO usuario_notificacion (visto, recordar, ci_usuario, id_notificacion)
+         VALUES (true, false, $1, $2)`,
+        [ciUsuario, id]
+      );
+    }
   }
 
   async resolve(id: number, tx?: TransactionContext): Promise<void> {

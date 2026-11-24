@@ -1,3 +1,9 @@
+export interface LinkProductCommand {
+  idProducto: number;
+  ultimoPrecio: number;
+  detalle?: string;
+}
+
 export interface CreateProviderCommand {
   nombre: string;
   razonSocial?: string;
@@ -7,6 +13,7 @@ export interface CreateProviderCommand {
   correo?: string;
   direccion?: string;
   detalle?: string;
+  productos?: LinkProductCommand[];
 }
 
 export interface UpdateProviderCommand {
@@ -19,10 +26,4 @@ export interface UpdateProviderCommand {
   direccion?: string;
   detalle?: string;
   activo?: boolean;
-}
-
-export interface LinkProductCommand {
-  idProducto: number;
-  ultimoPrecio: number;
-  detalle?: string;
 }

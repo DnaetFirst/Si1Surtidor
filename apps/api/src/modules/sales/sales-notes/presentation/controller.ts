@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Post, Query, Req } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, ParseIntPipe, Post, Query, Req } from '@nestjs/common';
 import { ApiCookieAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthRequest } from '../../../../shared/domain/context';
 import { ListQuery } from '../../../../shared/presentation/list-query.dto';
@@ -6,6 +6,9 @@ import { RequirePermissions } from '../../../security/auth/presentation/decorato
 import { SaleService } from '../application/service';
 import { CreateSaleDto } from './dto';
 
+/**
+ * CU11. Gestionar ventas (Diagramas UML: SalesController).
+ */
 @ApiTags('Ventas')
 @ApiCookieAuth()
 @Controller('ventas')
@@ -39,6 +42,23 @@ export class SalesController {
   crear(@Body() dto: CreateSaleDto, @Req() req: AuthRequest) {
     return this.service.crear(dto, req);
   }
+
+  @Post(':id/anular')
+  @HttpCode(200)
+  @RequirePermissions('ventas.gestionar', 'ventas.deshabilitar')
+  @ApiOperation({ summary: 'Anular una venta confirmada mediante autorización del Gerente de Sucursal restituyendo stock.' })
+  anular(@Param('id', ParseIntPipe) id: number, @Req() req: AuthRequest) {
+    return this.service.anular(id, req);
+  }
+
+  // Alias de métodos para trazabilidad con diagramas UML (CU11)
+  CrearVenta(dto: CreateSaleDto, req: AuthRequest) { return this.crear(dto, req); }
+  Anular(id: number, req: AuthRequest) { return this.anular(id, req); }
+  ObtenerVentas(query: ListQuery, sucursalId?: number) { return this.obtener(query, sucursalId); }
+  ValidarStock(dto: CreateSaleDto) { return this.service.validarStock(dto); }
+  registrarVenta(dto: CreateSaleDto, req: AuthRequest) { return this.crear(dto, req); }
+  anularVenta(id: number, req: AuthRequest) { return this.anular(id, req); }
+  consultarVentas(query: ListQuery, sucursalId?: number) { return this.obtener(query, sucursalId); }
 }
 
 export const ControladorNotaVenta = SalesController;

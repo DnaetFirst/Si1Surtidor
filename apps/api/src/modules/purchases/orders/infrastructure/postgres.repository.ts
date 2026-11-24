@@ -4,7 +4,7 @@ import { TransactionContext } from '../../../../shared/domain/context';
 import { ListQuery, PageResult } from '../../../../shared/domain/pagination';
 import { database } from '../../../../shared/infrastructure/persistence/transaction';
 import { filters, page } from '../../../../shared/infrastructure/persistence/pagination';
-import { CreatePurchaseOrderCommand, UpdatePurchaseOrderStatusCommand } from '../domain/commands';
+import { CreatePurchaseOrderCommand, UpdatePurchaseOrderCommand, UpdatePurchaseOrderStatusCommand } from '../domain/commands';
 import { PurchaseOrderDetailRecord, PurchaseOrderRecord } from '../domain/models';
 import { PurchaseOrderRepository } from '../domain/repository';
 
@@ -131,6 +131,49 @@ export class PostgresPurchaseOrderRepository extends PurchaseOrderRepository {
     return created!;
   }
 
+  async update(id: number, cmd: UpdatePurchaseOrderCommand, tx?: TransactionContext): Promise<PurchaseOrderRecord> {
+    const sets: string[] = ['updated_at = now()'];
+    const params: unknown[] = [];
+
+    if (cmd.motivo !== undefined) {
+      params.push(cmd.motivo);
+      sets.push(`motivo = $${params.length}`);
+    }
+    if (cmd.idProveedor !== undefined) {
+      params.push(cmd.idProveedor || null);
+      sets.push(`id_proveedor = $${params.length}`);
+    }
+    if (cmd.idSucursal !== undefined) {
+      params.push(cmd.idSucursal);
+      sets.push(`id_sucursal = $${params.length}`);
+    }
+    if (cmd.detalles?.length) {
+      const totalCantidad = cmd.detalles.reduce((acc, d) => acc + Number(d.cantidad || 0), 0);
+      params.push(Math.round(totalCantidad));
+      sets.push(`cantidad = $${params.length}`);
+    }
+
+    params.push(id);
+    await database(this.db, tx).query(
+      `UPDATE orden_compra SET ${sets.join(', ')} WHERE id = $${params.length}`,
+      params
+    );
+
+    if (cmd.detalles?.length) {
+      await database(this.db, tx).query(`DELETE FROM detalle_orden_compra WHERE id_orden_compra = $1`, [id]);
+      for (const d of cmd.detalles) {
+        await database(this.db, tx).query(
+          `INSERT INTO detalle_orden_compra (id_orden_compra, id_producto, cantidad)
+           VALUES ($1, $2, $3)`,
+          [id, d.idProducto, Number(d.cantidad)]
+        );
+      }
+    }
+
+    const updated = await this.findById(id, tx);
+    return updated!;
+  }
+
   async updateStatus(id: number, cmd: UpdatePurchaseOrderStatusCommand, tx?: TransactionContext): Promise<PurchaseOrderRecord> {
     await database(this.db, tx).query(
       `UPDATE orden_compra
@@ -142,6 +185,38 @@ export class PostgresPurchaseOrderRepository extends PurchaseOrderRepository {
     );
     const updated = await this.findById(id, tx);
     return updated!;
+  }
+
+  async isBranchActive(branchId: number, tx?: TransactionContext): Promise<boolean> {
+    const [row] = await database(this.db, tx).query(
+      `SELECT 1 FROM sucursal WHERE id = $1 AND activo = true`,
+      [branchId]
+    );
+    return !!row;
+  }
+
+  async isProviderActive(providerId: number, tx?: TransactionContext): Promise<boolean> {
+    const [row] = await database(this.db, tx).query(
+      `SELECT 1 FROM proveedor WHERE id = $1 AND activo = true`,
+      [providerId]
+    );
+    return !!row;
+  }
+
+  async isProductActive(productId: number, tx?: TransactionContext): Promise<boolean> {
+    const [row] = await database(this.db, tx).query(
+      `SELECT 1 FROM producto WHERE id = $1 AND esta_activo = true`,
+      [productId]
+    );
+    return !!row;
+  }
+
+  async hasReceipts(id: number, tx?: TransactionContext): Promise<boolean> {
+    const [row] = await database(this.db, tx).query(
+      `SELECT 1 FROM nota_compra WHERE id_orden = $1 LIMIT 1`,
+      [id]
+    );
+    return !!row;
   }
 
   private mapOrderRow(row: any): PurchaseOrderRecord {

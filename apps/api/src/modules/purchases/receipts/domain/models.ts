@@ -16,6 +16,7 @@ export interface PurchaseReceiptRecord {
   id: number;
   codigo: string;
   motivo: string;
+  estado?: string;
   montoTotal: number;
   moneda: string;
   fecha: string;
@@ -47,3 +48,9 @@ export interface BatchRecord {
   idProveedorProducto?: number | null;
   createdAt: Date;
 }
+
+// Alias para diagrama de clases, comunicación y análisis (CU10)
+export type Compra = PurchaseReceiptRecord;
+export type NotaCompra = PurchaseReceiptRecord;
+export type DetalleCompra = PurchaseReceiptDetailRecord;
+export type Lote = BatchRecord;

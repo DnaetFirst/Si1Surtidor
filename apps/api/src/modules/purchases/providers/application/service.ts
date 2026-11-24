@@ -6,6 +6,9 @@ import { CreateProviderCommand, LinkProductCommand, UpdateProviderCommand } from
 import { ProviderProductRecord, ProviderRecord } from '../domain/models';
 import { ProviderRepository } from '../domain/repository';
 
+/**
+ * CU13. Gestionar proveedores (Actores: Administrador TI y Gerente de Sucursal).
+ */
 @Injectable()
 export class ProviderService {
   constructor(
@@ -28,7 +31,17 @@ export class ProviderService {
       if (await this.repository.duplicate(dto.nit, null, tx)) {
         throw new ConflictException(`Ya existe un proveedor registrado con el NIT "${dto.nit}".`);
       }
-      return this.repository.create(dto, tx);
+      const created = await this.repository.create(dto, tx);
+      if (dto.productos?.length) {
+        for (const p of dto.productos) {
+          if (!(await this.repository.isProductActive(p.idProducto, tx))) {
+            throw new ConflictException(`El producto #${p.idProducto} no existe o está inactivo.`);
+          }
+          await this.repository.linkProduct(created.id, p, tx);
+        }
+        return this.obtenerPorId(created.id, tx);
+      }
+      return created;
     });
   }
 
@@ -49,6 +62,16 @@ export class ProviderService {
     });
   }
 
+  async eliminar(id: number, req: AuthRequest): Promise<ProviderRecord> {
+    return this.transactions.mutation(req, 'proveedores.deshabilitar', 'proveedor', async tx => {
+      await this.obtenerPorId(id, tx);
+      if (await this.repository.hasOrdersOrPurchases(id, tx)) {
+        throw new ConflictException('No se puede eliminar el proveedor porque tiene órdenes de compra o compras relacionadas. Puede deshabilitarlo para conservar el historial.');
+      }
+      return this.repository.disable(id, tx);
+    });
+  }
+
   async cambiarEstado(id: number, req: AuthRequest): Promise<ProviderRecord> {
     return this.transactions.mutation(req, 'proveedores.editar', 'proveedor', async tx => {
       await this.obtenerPorId(id, tx);
@@ -59,6 +82,9 @@ export class ProviderService {
   async vincularProducto(id: number, dto: LinkProductCommand, req: AuthRequest): Promise<ProviderProductRecord> {
     return this.transactions.mutation(req, 'proveedores.editar', 'proveedor_producto', async tx => {
       await this.obtenerPorId(id, tx);
+      if (!(await this.repository.isProductActive(dto.idProducto, tx))) {
+        throw new ConflictException(`El producto #${dto.idProducto} no existe o está inactivo.`);
+      }
       return this.repository.linkProduct(id, dto, tx);
     });
   }
@@ -71,12 +97,14 @@ export class ProviderService {
     });
   }
 
-  // Alias para retrocompatibilidad
+  // Alias para retrocompatibilidad y trazabilidad UML (CU13)
   list(query: ListQuery) { return this.obtener(query); }
   get(id: number, tx?: TransactionContext) { return this.obtenerPorId(id, tx); }
   create(dto: CreateProviderCommand, req: AuthRequest) { return this.crear(dto, req); }
   update(id: number, dto: UpdateProviderCommand, req: AuthRequest) { return this.modificar(id, dto, req); }
   disable(id: number, req: AuthRequest) { return this.deshabilitar(id, req); }
+  saveSupplier(dto: CreateProviderCommand, req: AuthRequest) { return this.crear(dto, req); }
+  registrarProveedorProducto(id: number, dto: LinkProductCommand, req: AuthRequest) { return this.vincularProducto(id, dto, req); }
 }
 
 export { ProviderService as ServicioProveedor };

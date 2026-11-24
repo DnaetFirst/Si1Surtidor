@@ -4,12 +4,13 @@ import { TransactionContext } from '../../../../shared/domain/context';
 import { ListQuery, PageResult } from '../../../../shared/domain/pagination';
 import { database } from '../../../../shared/infrastructure/persistence/transaction';
 import { filters, page } from '../../../../shared/infrastructure/persistence/pagination';
-import { CreatePurchaseReceiptCommand } from '../domain/commands';
+import { ConflictException } from '../../../../shared/domain/errors';
+import { CreatePurchaseReceiptCommand, UpdatePurchaseReceiptCommand } from '../domain/commands';
 import { BatchRecord, PurchaseReceiptDetailRecord, PurchaseReceiptRecord } from '../domain/models';
 import { PurchaseReceiptRepository } from '../domain/repository';
 
 const receiptFields = `
-  nc.id, nc.codigo, nc.motivo, nc.monto_total AS "montoTotal", nc.moneda,
+  nc.id, nc.codigo, nc.motivo, nc.estado, nc.monto_total AS "montoTotal", nc.moneda,
   nc.fecha, nc.hora, nc.id_proveedor AS "idProveedor", p.nombre AS "proveedorNombre", p.nit AS "proveedorNit",
   nc.id_sucursal AS "idSucursal", s.nombre AS "sucursalNombre",
   nc.id_orden AS "idOrden", oc.codigo AS "ordenCodigo",
@@ -149,12 +150,28 @@ export class PostgresPurchaseReceiptRepository extends PurchaseReceiptRepository
       const prc = Number(d.precio);
       const sub = qty * prc;
 
+      // Resolve optional proveedor_producto link (CU10 Comunicación: ProveedorProducto)
+      let idProveedorProducto: number | null = null;
+      if (cmd.idProveedor) {
+        const ppRows = await database(this.db, tx).query(
+          `SELECT id FROM proveedor_producto WHERE id_proveedor = $1 AND id_producto = $2 AND activo = true LIMIT 1`,
+          [cmd.idProveedor, d.idProducto]
+        );
+        if (ppRows.length) {
+          idProveedorProducto = Number(ppRows[0].id);
+          await database(this.db, tx).query(
+            `UPDATE proveedor_producto SET ultimo_precio = $1 WHERE id = $2`,
+            [prc, idProveedorProducto]
+          );
+        }
+      }
+
       // Create batch (lote)
       const loteRows = await database(this.db, tx).query(
-        `INSERT INTO lote (codigo, fecha_vencimiento, detalle, stock, stock_inicial, esta_activo, id_producto)
-         VALUES ($1, $2, $3, $4, $5, true, $6)
+        `INSERT INTO lote (codigo, fecha_vencimiento, detalle, stock, stock_inicial, esta_activo, id_producto, id_proveedor_producto)
+         VALUES ($1, $2, $3, $4, $5, true, $6, $7)
          RETURNING id`,
-        [batchCode, d.fechaVencimiento || null, d.loteDetalle || '', qty, qty, d.idProducto]
+        [batchCode, d.fechaVencimiento || null, d.loteDetalle || '', qty, qty, d.idProducto, idProveedorProducto]
       );
       const loteId = Number(loteRows[0].id);
 
@@ -168,6 +185,84 @@ export class PostgresPurchaseReceiptRepository extends PurchaseReceiptRepository
 
     const created = await this.findById(receiptId, tx);
     return created!;
+  }
+
+  async update(id: number, cmd: UpdatePurchaseReceiptCommand, tx?: TransactionContext): Promise<PurchaseReceiptRecord> {
+    const sets: string[] = [];
+    const params: unknown[] = [];
+    if (cmd.motivo !== undefined) {
+      params.push(cmd.motivo);
+      sets.push(`motivo = $${params.length}`);
+    }
+    if (cmd.moneda !== undefined) {
+      params.push(cmd.moneda);
+      sets.push(`moneda = $${params.length}`);
+    }
+    if (sets.length) {
+      params.push(id);
+      await database(this.db, tx).query(
+        `UPDATE nota_compra SET ${sets.join(', ')} WHERE id = $${params.length}`,
+        params
+      );
+    }
+    return (await this.findById(id, tx))!;
+  }
+
+  async annul(id: number, tx?: TransactionContext): Promise<PurchaseReceiptRecord> {
+    const receipt = await this.findById(id, tx);
+    if (!receipt) throw new ConflictException('Nota de compra no encontrada.');
+    if (receipt.estado === 'ANULADA') {
+      throw new ConflictException('La nota de compra ya fue anulada.');
+    }
+
+    for (const d of receipt.detalles || []) {
+      const [prod] = await database(this.db, tx).query(`SELECT stock FROM producto WHERE id = $1 FOR UPDATE`, [d.idProducto]);
+      if (!prod || Number(prod.stock) < Number(d.cantidad)) {
+        throw new ConflictException(`No es posible revertir la compra: el stock del producto #${d.idProducto} ya fue utilizado.`);
+      }
+      if (d.idLote) {
+        const [lote] = await database(this.db, tx).query(`SELECT stock FROM lote WHERE id = $1 FOR UPDATE`, [d.idLote]);
+        if (!lote || Number(lote.stock) < Number(d.cantidad)) {
+          throw new ConflictException(`No es posible revertir la compra: el lote ${d.loteCodigo || d.idLote} ya tiene salidas registradas.`);
+        }
+      }
+    }
+
+    for (const d of receipt.detalles || []) {
+      await database(this.db, tx).query(
+        `UPDATE producto SET stock = stock - $1, updated_at = now() WHERE id = $2`,
+        [d.cantidad, d.idProducto]
+      );
+      if (d.idLote) {
+        await database(this.db, tx).query(
+          `UPDATE lote SET stock = stock - $1, esta_activo = false WHERE id = $2`,
+          [d.cantidad, d.idLote]
+        );
+      }
+    }
+
+    await database(this.db, tx).query(`UPDATE nota_compra SET estado = 'ANULADA' WHERE id = $1`, [id]);
+    return (await this.findById(id, tx))!;
+  }
+
+  async getOrderStatus(orderId: number, tx?: TransactionContext): Promise<string | null> {
+    const [row] = await database(this.db, tx).query(`SELECT estado FROM orden_compra WHERE id = $1`, [orderId]);
+    return row ? row.estado : null;
+  }
+
+  async isBranchActive(branchId: number, tx?: TransactionContext): Promise<boolean> {
+    const [row] = await database(this.db, tx).query(`SELECT 1 FROM sucursal WHERE id = $1 AND activo = true`, [branchId]);
+    return !!row;
+  }
+
+  async isProviderActive(providerId: number, tx?: TransactionContext): Promise<boolean> {
+    const [row] = await database(this.db, tx).query(`SELECT 1 FROM proveedor WHERE id = $1 AND activo = true`, [providerId]);
+    return !!row;
+  }
+
+  async isProductActive(productId: number, tx?: TransactionContext): Promise<boolean> {
+    const [row] = await database(this.db, tx).query(`SELECT 1 FROM producto WHERE id = $1 AND esta_activo = true`, [productId]);
+    return !!row;
   }
 
   async listBatches(query: ListQuery, productId?: number, tx?: TransactionContext): Promise<PageResult<BatchRecord>> {
@@ -204,6 +299,7 @@ export class PostgresPurchaseReceiptRepository extends PurchaseReceiptRepository
       id: Number(row.id),
       codigo: row.codigo,
       motivo: row.motivo || '',
+      estado: row.estado || 'COMPLETADA',
       montoTotal: Number(row.montoTotal || 0),
       moneda: row.moneda || 'BOB',
       fecha: typeof row.fecha === 'string' ? row.fecha : row.fecha?.toISOString?.()?.split('T')[0] ?? '',

@@ -24,3 +24,7 @@ export interface DispenserRecord {
   updatedAt: string;
   mangueras?: HoseRecord[];
 }
+
+// Alias para diagrama de clases, comunicación y análisis (CU7)
+export type Dispensador = DispenserRecord;
+export type Manguera = HoseRecord;

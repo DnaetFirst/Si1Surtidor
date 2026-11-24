@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, MaxLength, Min } from 'class-validator';
+import { IsBoolean, IsDateString, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, MaxLength, Min } from 'class-validator';
 
 export class CreateDiscountDto {
   @ApiProperty({ description: 'Nombre del descuento', example: 'Descuento Fidelidad' })
@@ -20,13 +20,23 @@ export class CreateDiscountDto {
 
   @ApiProperty({ description: 'Valor del descuento (% o Bs)', example: 10.0 })
   @IsNumber()
-  @Min(0)
+  @Min(0.01)
   valor!: number;
 
   @ApiPropertyOptional({ description: 'ID de sucursal específica (opcional si es global)', example: 1 })
   @IsOptional()
   @IsNumber()
   idSucursal?: number;
+
+  @ApiPropertyOptional({ description: 'Fecha de inicio de vigencia (YYYY-MM-DD)' })
+  @IsOptional()
+  @IsDateString()
+  fechaInicio?: string;
+
+  @ApiPropertyOptional({ description: 'Fecha de fin de vigencia (YYYY-MM-DD)' })
+  @IsOptional()
+  @IsDateString()
+  fechaFin?: string;
 
   @ApiPropertyOptional({ description: 'Estado activo del descuento', example: true })
   @IsOptional()
@@ -55,13 +65,23 @@ export class UpdateDiscountDto {
   @ApiPropertyOptional({ description: 'Valor del descuento' })
   @IsOptional()
   @IsNumber()
-  @Min(0)
+  @Min(0.01)
   valor?: number;
 
   @ApiPropertyOptional({ description: 'Estado activo' })
   @IsOptional()
   @IsBoolean()
   activo?: boolean;
+
+  @ApiPropertyOptional({ description: 'Fecha de inicio de vigencia (YYYY-MM-DD)' })
+  @IsOptional()
+  @IsDateString()
+  fechaInicio?: string;
+
+  @ApiPropertyOptional({ description: 'Fecha de fin de vigencia (YYYY-MM-DD)' })
+  @IsOptional()
+  @IsDateString()
+  fechaFin?: string;
 
   @ApiPropertyOptional({ description: 'ID de sucursal' })
   @IsOptional()

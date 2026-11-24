@@ -27,3 +27,9 @@ export interface PurchaseOrderRecord {
   createdAt: Date;
   updatedAt: Date;
 }
+
+// Alias para diagrama de clases, comunicación y análisis (CU9)
+export type Orden_de_compra = PurchaseOrderRecord;
+export type OrdenDeCompra = PurchaseOrderRecord;
+export type Detalle_de_orden = PurchaseOrderDetailRecord;
+export type DetalleOrdenCompra = PurchaseOrderDetailRecord;

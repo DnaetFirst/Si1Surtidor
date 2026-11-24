@@ -13,4 +13,6 @@ export abstract class DispenserRepository {
   abstract addHose(dispenserId: number, data: CreateHoseCommand, tx: TransactionContext): Promise<HoseRecord>;
   abstract updateHose(hoseId: number, data: UpdateHoseCommand, tx: TransactionContext): Promise<HoseRecord>;
   abstract disableHose(hoseId: number, tx: TransactionContext): Promise<HoseRecord>;
+  abstract isBranchActive(branchId: number, tx?: TransactionContext): Promise<boolean>;
+  abstract isFuelActive(fuelId: number, tx?: TransactionContext): Promise<boolean>;
 }
