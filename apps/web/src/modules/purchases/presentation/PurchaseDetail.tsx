@@ -1,6 +1,7 @@
-import { ArrowLeft, Package, ShoppingCart } from 'lucide-react';
+import { ArrowLeft, Package, ShoppingCart, XCircle } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import useSWR from 'swr';
+import { allowed, setNotice, useAppDispatch, useSession } from '../../security/auth/application/session';
 import { Card } from '../../../shared/presentation/layout';
 import { ErrorBox, Loading } from '../../../shared/presentation/feedback';
 import { usePurchasesApi } from '../application/repository-context';
@@ -9,8 +10,10 @@ import { PurchaseReceipt } from '../domain/models';
 export function PurchaseDetail() {
   const { id } = useParams<{ id: string }>();
   const api = usePurchasesApi();
+  const { user } = useSession();
+  const dispatch = useAppDispatch();
 
-  const { data: purchase, error, isLoading } = useSWR<PurchaseReceipt>(
+  const { data: purchase, error, isLoading, mutate } = useSWR<PurchaseReceipt>(
     `/compras/${id}`,
     () => api.getPurchase(Number(id))
   );
@@ -18,15 +21,49 @@ export function PurchaseDetail() {
   if (isLoading) return <Loading />;
   if (error || !purchase) return <ErrorBox error={error || new Error('Compra no encontrada')} />;
 
+  const canAnnul = purchase.estado !== 'ANULADA' && allowed(user, 'compras', 'deshabilitar');
+
+  const handleAnnul = async () => {
+    if (!window.confirm(`¿Anular la compra ${purchase.codigo}? Se descontará el stock ingresado si aún está disponible.`)) return;
+    try {
+      await api.annulPurchase(purchase.id);
+      await mutate();
+      dispatch(setNotice(`Compra ${purchase.codigo} anulada y lotes revertidos.`));
+    } catch (err: any) {
+      dispatch(setNotice(err?.message || 'Error al anular compra'));
+    }
+  };
+
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-        <Link to="/compras" className="button icon-button">
-          <ArrowLeft size={16} />
-        </Link>
-        <h1 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 700 }}>
-          Compra #{purchase.codigo}
-        </h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <Link to="/compras" className="button icon-button">
+            <ArrowLeft size={16} />
+          </Link>
+          <h1 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 700 }}>
+            Compra #{purchase.codigo}
+          </h1>
+          <span
+            className="badge"
+            style={{
+              background: purchase.estado === 'ANULADA' ? '#fee2e2' : '#dcfce7',
+              color: purchase.estado === 'ANULADA' ? '#991b1b' : '#166534',
+            }}
+          >
+            {purchase.estado || 'REGISTRADA'}
+          </span>
+        </div>
+        {canAnnul && (
+          <button
+            type="button"
+            className="button"
+            style={{ color: '#991b1b', borderColor: '#fecaca', background: '#fef2f2' }}
+            onClick={handleAnnul}
+          >
+            <XCircle size={16} /> Anular Compra
+          </button>
+        )}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '20px' }}>
@@ -169,3 +206,6 @@ export function PurchaseDetail() {
     </div>
   );
 }
+
+export const UIDetalleCompra = PurchaseDetail;
+export const UICompraDetalle = PurchaseDetail;

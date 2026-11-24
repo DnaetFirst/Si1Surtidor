@@ -13,27 +13,30 @@ import { ReportsApi } from '../domain/repository';
 export const reportsApi: ReportsApi = {
   getSummaryKey: (branchId?: number) => `/reportes/resumen${branchId ? `?sucursalId=${branchId}` : ''}`,
 
-  getSalesReport: (from = '', to = '', branchId?: number) => {
+  getSalesReport: (from = '', to = '', branchId?: number, periodo = '') => {
     let url = '/reportes/ventas?';
     if (from) url += `desde=${from}&`;
     if (to) url += `hasta=${to}&`;
     if (branchId) url += `sucursalId=${branchId}&`;
+    if (periodo && periodo !== 'todo') url += `periodo=${periodo}&`;
     return send<{ daily: DailySales[]; items: SaleItemRow[] }>(url, 'GET');
   },
 
-  getDispensersReport: (from = '', to = '', branchId?: number) => {
+  getDispensersReport: (from = '', to = '', branchId?: number, periodo = '') => {
     let url = '/reportes/dispensadores?';
     if (from) url += `desde=${from}&`;
     if (to) url += `hasta=${to}&`;
     if (branchId) url += `sucursalId=${branchId}&`;
+    if (periodo && periodo !== 'todo') url += `periodo=${periodo}&`;
     return send<DispenserSale[]>(url, 'GET');
   },
 
-  getPurchasesReport: (from = '', to = '', branchId?: number) => {
+  getPurchasesReport: (from = '', to = '', branchId?: number, periodo = '') => {
     let url = '/reportes/compras?';
     if (from) url += `desde=${from}&`;
     if (to) url += `hasta=${to}&`;
     if (branchId) url += `sucursalId=${branchId}&`;
+    if (periodo && periodo !== 'todo') url += `periodo=${periodo}&`;
     return send<ProviderPurchase[]>(url, 'GET');
   },
 
@@ -42,21 +45,23 @@ export const reportsApi: ReportsApi = {
     return send<InventoryStatus[]>(url, 'GET');
   },
 
-  getExitsReport: (from = '', to = '', branchId?: number) => {
+  getExitsReport: (from = '', to = '', branchId?: number, periodo = '') => {
     let url = '/reportes/salidas?';
     if (from) url += `desde=${from}&`;
     if (to) url += `hasta=${to}&`;
     if (branchId) url += `sucursalId=${branchId}&`;
+    if (periodo && periodo !== 'todo') url += `periodo=${periodo}&`;
     return send<ExitSummary[]>(url, 'GET');
   },
 
   getCustomersReport: (limit = 10) => send<TopCustomer[]>(`/reportes/clientes?limite=${limit}`, 'GET'),
 
-  exportCsvUrl: (type: string, from?: string, to?: string, branchId?: number) => {
+  exportCsvUrl: (type: string, from?: string, to?: string, branchId?: number, periodo?: string) => {
     let url = `/api/reportes/exportar-csv?tipo=${type}&`;
     if (from) url += `desde=${from}&`;
     if (to) url += `hasta=${to}&`;
     if (branchId) url += `sucursalId=${branchId}&`;
+    if (periodo && periodo !== 'todo') url += `periodo=${periodo}&`;
     return url;
   },
 };

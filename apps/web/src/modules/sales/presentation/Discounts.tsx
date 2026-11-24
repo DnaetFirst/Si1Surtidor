@@ -180,3 +180,7 @@ export function Discounts() {
     </div>
   );
 }
+
+// Alias de componente «UI» para trazabilidad UML (CU12: UI.Descuento)
+export const UIDescuento = Discounts;
+export const DescuentoUI = Discounts;

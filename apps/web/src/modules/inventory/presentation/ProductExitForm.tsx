@@ -30,7 +30,8 @@ export function ProductExitForm() {
       return;
     }
     if (selectedProduct && Number(cantidad) > Number(selectedProduct.stock)) {
-      if (!window.confirm('La cantidad a dar de baja supera el stock registrado. ¿Desea continuar?')) return;
+      setError(new Error(`Stock insuficiente: el producto "${selectedProduct.nombre}" solo tiene ${selectedProduct.stock} unidades disponibles.`));
+      return;
     }
 
     setSaving(true);
@@ -104,3 +105,6 @@ export function ProductExitForm() {
     </form>
   );
 }
+
+export const UISalidaForm = ProductExitForm;
+export const UISalidaProductoForm = ProductExitForm;

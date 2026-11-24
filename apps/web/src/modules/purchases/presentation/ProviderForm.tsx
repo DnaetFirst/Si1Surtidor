@@ -177,3 +177,6 @@ export function ProviderForm() {
     </form>
   );
 }
+
+export const UIProveedorForm = ProviderForm;
+export const IUProveedorForm = ProviderForm;

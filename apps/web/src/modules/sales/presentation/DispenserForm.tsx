@@ -262,3 +262,6 @@ export function DispenserForm() {
     </form>
   );
 }
+
+export const UIDispensadorForm = DispenserForm;
+export const IUDispensadorForm = DispenserForm;

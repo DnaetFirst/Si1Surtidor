@@ -149,6 +149,7 @@ export function Layout() {
     } else if (location.pathname.startsWith('/compras/ordenes')) {
       crumbs.push({ label: 'Órdenes de compra', ...(can('ordenes') ? { href: '/compras/ordenes' } : {}) });
       if (location.pathname.endsWith('/crear')) crumbs.push({ label: 'Crear orden' });
+      else if (location.pathname.endsWith('/editar')) crumbs.push({ label: 'Modificar orden' });
     } else {
       crumbs.push({ label: 'Compras', ...(can('compras') ? { href: '/compras' } : {}) });
       if (location.pathname.endsWith('/crear')) crumbs.push({ label: 'Registrar compra' });

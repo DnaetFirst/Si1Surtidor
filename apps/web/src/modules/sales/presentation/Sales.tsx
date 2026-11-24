@@ -1,8 +1,8 @@
-import { Download, Filter, Info, PlusCircle, ShieldCheck } from 'lucide-react';
+import { Download, Filter, Info, PlusCircle, ShieldCheck, XCircle } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import useSWR from 'swr';
-import { allowed, useSession } from '../../security/auth/application/session';
+import { allowed, setNotice, useAppDispatch, useSession } from '../../security/auth/application/session';
 import { PageResult } from '../../../shared/domain/pagination';
 import { Card, PageHeading } from '../../../shared/presentation/layout';
 import { Empty, ErrorBox, Loading } from '../../../shared/presentation/feedback';
@@ -14,6 +14,7 @@ import { Sale } from '../domain/models';
 export function Sales() {
   const api = useSalesApi();
   const { user } = useSession();
+  const dispatch = useAppDispatch();
 
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
@@ -22,6 +23,17 @@ export function Sales() {
   const { data, error, isLoading, mutate } = useSWR<PageResult<Sale>>(
     api.listSalesKey(q, undefined, page)
   );
+
+  const handleAnnul = async (s: Sale) => {
+    if (!window.confirm(`¿Anular la venta ${s.codigo}? Se restituirá el stock de productos.`)) return;
+    try {
+      await api.annulSale(s.id);
+      await mutate();
+      dispatch(setNotice(`Venta ${s.codigo} anulada y existencias restituidas.`));
+    } catch (err: any) {
+      dispatch(setNotice(err?.message || 'Error al anular venta'));
+    }
+  };
 
   const exportCsv = () => {
     if (!data?.items?.length) return;
@@ -95,6 +107,7 @@ export function Sales() {
                   <th>Total Cobrado</th>
                   <th>Método Pago</th>
                   <th>B-SISA</th>
+                  <th>Estado</th>
                   <th>Sucursal</th>
                   <th><span className="sr-only">Acciones</span></th>
                 </tr>
@@ -102,6 +115,7 @@ export function Sales() {
               <tbody>
                 {data.items.map((s: Sale) => {
                   const totalCobrado = Number(s.montoPagado) - Number(s.montoCambio);
+                  const isAnulada = s.estado === 'ANULADA';
                   return (
                     <tr key={s.id}>
                       <td>
@@ -148,12 +162,32 @@ export function Sales() {
                           {s.estadoBSisa ? 'Válido' : 'No reg.'}
                         </span>
                       </td>
+                      <td>
+                        <span
+                          style={{
+                            display: 'inline-block',
+                            padding: '2px 10px',
+                            borderRadius: '12px',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            backgroundColor: isAnulada ? '#fee2e2' : '#ecfdf5',
+                            color: isAnulada ? '#991b1b' : '#065f46',
+                          }}
+                        >
+                          {s.estado || 'EMITIDA'}
+                        </span>
+                      </td>
                       <td>{s.sucursalNombre || '—'}</td>
                       <td className="menu-cell">
                         <RowMenu label={s.codigo}>
                           <Link to={`/ventas/${s.id}`}>
                             <Info size={14} style={{ marginRight: '6px' }} /> Ver Comprobante
                           </Link>
+                          {!isAnulada && allowed(user, 'ventas', 'deshabilitar') && (
+                            <button onClick={() => handleAnnul(s)} style={{ color: '#ef4444' }}>
+                              <XCircle size={14} style={{ marginRight: '6px' }} /> Anular Venta
+                            </button>
+                          )}
                         </RowMenu>
                       </td>
                     </tr>
@@ -173,3 +207,7 @@ export function Sales() {
     </div>
   );
 }
+
+// Alias de componente «UI» para trazabilidad UML (CU11: UI.Venta)
+export const UIVenta = Sales;
+export const VentaUI = Sales;

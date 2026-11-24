@@ -33,6 +33,7 @@ export const salesApi: SalesApi = {
     `/ventas?q=${encodeURIComponent(q)}${branchId ? `&sucursalId=${branchId}` : ''}&page=${page}&pageSize=10`,
   getSale: (id: number) => send<Sale>(`/ventas/${id}`, 'GET'),
   createSale: (data: any) => send<Sale>('/ventas', 'POST', data),
+  annulSale: (id: number) => send<Sale>(`/ventas/${id}/anular`, 'POST'),
   listCustomersKey: (q = '', page = 1) =>
     `/ventas/clientes?q=${encodeURIComponent(q)}&page=${page}&pageSize=10`,
 };

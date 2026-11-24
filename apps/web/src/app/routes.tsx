@@ -164,6 +164,7 @@ export function AppRoutes() {
           <Route element={<Guard module="ordenes" />}>
             <Route path="/compras/ordenes" element={<PurchaseOrders />} />
             <Route path="/compras/ordenes/crear" element={<PurchaseOrderForm />} />
+            <Route path="/compras/ordenes/:id/editar" element={<PurchaseOrderForm />} />
           </Route>
 
           <Route element={<Guard module="compras" />}>

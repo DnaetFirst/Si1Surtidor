@@ -1,16 +1,16 @@
 import { Plus, Trash2 } from 'lucide-react';
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import useSWR from 'swr';
 import { setNotice, useAppDispatch, useSession } from '../../security/auth/application/session';
 import { Card, FormTop } from '../../../shared/presentation/layout';
-import { ErrorBox } from '../../../shared/presentation/feedback';
+import { ErrorBox, Loading } from '../../../shared/presentation/feedback';
 import { Field } from '../../../shared/presentation/forms';
 import { useBranches } from '../../enterprise/branches/application/use-branches';
 import { useInventoryApi } from '../../inventory/application/repository-context';
 import { Product } from '../../inventory/domain/models';
 import { usePurchasesApi } from '../application/repository-context';
-import { Provider } from '../domain/models';
+import { Provider, PurchaseOrder } from '../domain/models';
 
 interface OrderItemLine {
   idProducto: number;
@@ -18,6 +18,8 @@ interface OrderItemLine {
 }
 
 export function PurchaseOrderForm() {
+  const { id } = useParams<{ id?: string }>();
+  const isEditing = Boolean(id);
   const api = usePurchasesApi();
   const inventoryApi = useInventoryApi();
   const branchesState = useBranches();
@@ -36,8 +38,25 @@ export function PurchaseOrderForm() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<unknown>(null);
 
+  const { data: existing, isLoading } = useSWR<PurchaseOrder>(
+    isEditing ? `/ordenes-compra/${id}` : null,
+    () => api.getOrder(Number(id))
+  );
   const { data: providersData } = useSWR<{ items: Provider[] }>(api.listProvidersKey('', 'true', 1));
   const { data: productsData } = useSWR<Product[]>(inventoryApi.listProductsKey());
+
+  useEffect(() => {
+    if (existing) {
+      setIdSucursal(existing.idSucursal);
+      setIdProveedor(existing.idProveedor ?? '');
+      setMotivo(existing.motivo || '');
+      if (existing.detalles?.length) {
+        setDetalles(existing.detalles.map(d => ({ idProducto: d.idProducto, cantidad: d.cantidad })));
+      }
+    }
+  }, [existing]);
+
+  if (isEditing && isLoading) return <Loading />;
 
   const handleAddItem = () => {
     setDetalles([...detalles, { idProducto: 0, cantidad: 1 }]);
@@ -69,13 +88,19 @@ export function PurchaseOrderForm() {
     setSaving(true);
     setError(null);
     try {
-      await api.createOrder({
+      const payload = {
         idSucursal: Number(idSucursal),
         idProveedor: idProveedor ? Number(idProveedor) : undefined,
         motivo: motivo.trim() || 'Abastecimiento de stock',
         detalles: validDetails,
-      });
-      dispatch(setNotice('Orden de compra registrada exitosamente.'));
+      };
+      if (isEditing) {
+        await api.updateOrder(Number(id), payload);
+        dispatch(setNotice('Orden de compra actualizada exitosamente.'));
+      } else {
+        await api.createOrder(payload);
+        dispatch(setNotice('Orden de compra registrada exitosamente.'));
+      }
       navigate('/compras/ordenes');
     } catch (err) {
       setError(err);
@@ -87,10 +112,10 @@ export function PurchaseOrderForm() {
   return (
     <form onSubmit={handleSubmit}>
       <FormTop
-        title="Crear Orden de Compra"
+        title={isEditing ? 'Modificar Orden de Compra' : 'Crear Orden de Compra'}
         back="/compras/ordenes"
         saving={saving}
-        saveLabel="Generar Orden"
+        saveLabel={isEditing ? 'Guardar Cambios' : 'Generar Orden'}
       />
       <ErrorBox error={error} />
 

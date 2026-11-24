@@ -131,3 +131,7 @@ export function Purchases() {
     </div>
   );
 }
+
+// Alias de componente «UI» para trazabilidad UML (CU10: UI.Compra / Gestionar Compra)
+export const UICompra = Purchases;
+export const GestionarCompraUI = Purchases;

@@ -26,6 +26,7 @@ export function Reports() {
   const [idSucursal, setIdSucursal] = useState<number | ''>('');
   const [desde, setDesde] = useState('');
   const [hasta, setHasta] = useState('');
+  const [periodo, setPeriodo] = useState<'todo' | 'semana' | 'mes' | 'ano'>('todo');
 
   // 1. Dashboard summary
   const { data: summary, error: summaryError, isLoading: summaryLoading } = useSWR<DashboardSummary>(
@@ -33,19 +34,19 @@ export function Reports() {
   );
 
   // 2. Tab data loaders
-  const { data: salesData, isLoading: salesLoading } = useSWR(
-    activeTab === 'ventas' ? ['/reportes/ventas', desde, hasta, idSucursal] : null,
-    () => api.getSalesReport(desde, hasta, idSucursal ? Number(idSucursal) : undefined)
+  const { data: salesData, error: salesError, isLoading: salesLoading } = useSWR(
+    activeTab === 'ventas' ? ['/reportes/ventas', desde, hasta, idSucursal, periodo] : null,
+    () => api.getSalesReport(desde, hasta, idSucursal ? Number(idSucursal) : undefined, periodo)
   );
 
-  const { data: dispensersData, isLoading: dispensersLoading } = useSWR(
-    activeTab === 'dispensadores' ? ['/reportes/dispensadores', desde, hasta, idSucursal] : null,
-    () => api.getDispensersReport(desde, hasta, idSucursal ? Number(idSucursal) : undefined)
+  const { data: dispensersData, error: dispensersError, isLoading: dispensersLoading } = useSWR(
+    activeTab === 'dispensadores' ? ['/reportes/dispensadores', desde, hasta, idSucursal, periodo] : null,
+    () => api.getDispensersReport(desde, hasta, idSucursal ? Number(idSucursal) : undefined, periodo)
   );
 
-  const { data: purchasesData, isLoading: purchasesLoading } = useSWR(
-    activeTab === 'compras' ? ['/reportes/compras', desde, hasta, idSucursal] : null,
-    () => api.getPurchasesReport(desde, hasta, idSucursal ? Number(idSucursal) : undefined)
+  const { data: purchasesData, error: purchasesError, isLoading: purchasesLoading } = useSWR(
+    activeTab === 'compras' ? ['/reportes/compras', desde, hasta, idSucursal, periodo] : null,
+    () => api.getPurchasesReport(desde, hasta, idSucursal ? Number(idSucursal) : undefined, periodo)
   );
 
   const { data: inventoryData, isLoading: inventoryLoading } = useSWR(
@@ -53,9 +54,9 @@ export function Reports() {
     () => api.getInventoryReport(idSucursal ? Number(idSucursal) : undefined)
   );
 
-  const { data: exitsData, isLoading: exitsLoading } = useSWR(
-    activeTab === 'salidas' ? ['/reportes/salidas', desde, hasta, idSucursal] : null,
-    () => api.getExitsReport(desde, hasta, idSucursal ? Number(idSucursal) : undefined)
+  const { data: exitsData, error: exitsError, isLoading: exitsLoading } = useSWR(
+    activeTab === 'salidas' ? ['/reportes/salidas', desde, hasta, idSucursal, periodo] : null,
+    () => api.getExitsReport(desde, hasta, idSucursal ? Number(idSucursal) : undefined, periodo)
   );
 
   const { data: customersData, isLoading: customersLoading } = useSWR(
@@ -64,7 +65,7 @@ export function Reports() {
   );
 
   const handleExportCsv = (tipo: string) => {
-    window.open(api.exportCsvUrl(tipo, desde, hasta, idSucursal ? Number(idSucursal) : undefined), '_blank');
+    window.open(api.exportCsvUrl(tipo, desde, hasta, idSucursal ? Number(idSucursal) : undefined, periodo), '_blank');
   };
 
   const tabs = [
@@ -86,14 +87,14 @@ export function Reports() {
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <button
             className="button"
-            onClick={() => handleExportCsv(activeTab === 'inventario' ? 'inventario' : 'ventas')}
+            onClick={() => handleExportCsv(activeTab === 'resumen' ? 'ventas' : activeTab)}
           >
             <Download size={16} /> Exportar CSV
           </button>
         </div>
       </PageHeading>
 
-      <ErrorBox error={summaryError} />
+      <ErrorBox error={summaryError || salesError || dispensersError || purchasesError || exitsError} />
 
       {/* KPI Cards Row */}
       {summaryLoading ? (
@@ -250,6 +251,14 @@ export function Reports() {
       {activeTab !== 'resumen' && activeTab !== 'inventario' && activeTab !== 'clientes' && (
         <Card className="mb-4">
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'flex-end' }}>
+            <Field label="Período">
+              <select value={periodo} onChange={e => setPeriodo(e.target.value as any)}>
+                <option value="todo">Personalizado / Todo</option>
+                <option value="semana">Esta semana</option>
+                <option value="mes">Este mes</option>
+                <option value="ano">Este año</option>
+              </select>
+            </Field>
             <Field label="Desde">
               <input type="date" value={desde} onChange={e => setDesde(e.target.value)} />
             </Field>
@@ -266,13 +275,14 @@ export function Reports() {
                 ))}
               </select>
             </Field>
-            {(desde || hasta || idSucursal) && (
+            {(desde || hasta || idSucursal || periodo !== 'todo') && (
               <button
                 className="button"
                 onClick={() => {
                   setDesde('');
                   setHasta('');
                   setIdSucursal('');
+                  setPeriodo('todo');
                 }}
               >
                 Limpiar filtros
@@ -665,3 +675,7 @@ export function Reports() {
     </div>
   );
 }
+
+// Alias de componente «UI» para trazabilidad UML (CU14: UI.Reporte / UIReportes)
+export const UIReporte = Reports;
+export const UIReportes = Reports;

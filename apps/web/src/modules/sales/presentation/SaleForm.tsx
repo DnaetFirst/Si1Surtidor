@@ -138,7 +138,15 @@ export function SaleForm() {
   };
 
   const totalBruto = items.reduce((acc, it) => acc + it.cantidad * it.precio, 0);
-  const totalNeto = totalBruto;
+  const totalNeto = items.reduce((acc, it) => {
+    const raw = it.cantidad * it.precio;
+    const disc = it.idDescuento ? (discountsData || []).find(d => d.id === it.idDescuento) : undefined;
+    if (!disc) return acc + raw;
+    const sub = disc.tipo === 'PORCENTAJE'
+      ? Math.max(0, raw * (1 - Number(disc.valor) / 100))
+      : Math.max(0, raw - Number(disc.valor));
+    return acc + Math.round(sub * 100) / 100;
+  }, 0);
   const montoRecibido = montoEntregado === '' ? totalNeto : Number(montoEntregado);
   const cambio = Math.max(0, montoRecibido - totalNeto);
 
@@ -486,6 +494,11 @@ export function SaleForm() {
                 Bs. {totalNeto.toFixed(2)}
               </span>
             </div>
+            {totalBruto > totalNeto && (
+              <div style={{ textAlign: 'right', fontSize: '0.82rem', color: '#059669', marginTop: '4px' }}>
+                Descuento aplicado: -Bs. {(totalBruto - totalNeto).toFixed(2)}
+              </div>
+            )}
           </Card>
 
           <Card title="Cobro y Método de Pago">
@@ -525,3 +538,6 @@ export function SaleForm() {
     </form>
   );
 }
+
+export const UIVentaForm = SaleForm;
+export const UIRealizarVenta = SaleForm;

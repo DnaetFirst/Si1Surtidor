@@ -1,6 +1,7 @@
-import { ArrowLeft, Printer, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Printer, ShieldCheck, XCircle } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import useSWR from 'swr';
+import { allowed, setNotice, useAppDispatch, useSession } from '../../security/auth/application/session';
 import { Card } from '../../../shared/presentation/layout';
 import { ErrorBox, Loading } from '../../../shared/presentation/feedback';
 import { useSalesApi } from '../application/repository-context';
@@ -9,8 +10,10 @@ import { Sale } from '../domain/models';
 export function SaleDetail() {
   const { id } = useParams<{ id: string }>();
   const api = useSalesApi();
+  const { user } = useSession();
+  const dispatch = useAppDispatch();
 
-  const { data: sale, error, isLoading } = useSWR<Sale>(
+  const { data: sale, error, isLoading, mutate } = useSWR<Sale>(
     `/ventas/${id}`,
     () => api.getSale(Number(id))
   );
@@ -19,6 +22,18 @@ export function SaleDetail() {
   if (error || !sale) return <ErrorBox error={error || new Error('Nota de venta no encontrada')} />;
 
   const total = Number(sale.montoPagado) - Number(sale.montoCambio);
+  const canAnnul = sale.estado !== 'ANULADA' && allowed(user, 'ventas', 'deshabilitar');
+
+  const handleAnnul = async () => {
+    if (!window.confirm(`¿Anular la venta ${sale.codigo}? Se restituirá el stock de productos.`)) return;
+    try {
+      await api.annulSale(sale.id);
+      await mutate();
+      dispatch(setNotice(`Venta ${sale.codigo} anulada y existencias restituidas.`));
+    } catch (err: any) {
+      dispatch(setNotice(err?.message || 'Error al anular venta'));
+    }
+  };
 
   return (
     <div>
@@ -30,10 +45,31 @@ export function SaleDetail() {
           <h1 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 700 }}>
             Comprobante de Venta #{sale.codigo}
           </h1>
+          <span
+            className="badge"
+            style={{
+              background: sale.estado === 'ANULADA' ? '#fee2e2' : '#dcfce7',
+              color: sale.estado === 'ANULADA' ? '#991b1b' : '#166534',
+            }}
+          >
+            {sale.estado || 'EMITIDA'}
+          </span>
         </div>
-        <button className="button" onClick={() => window.print()}>
-          <Printer size={16} /> Imprimir Ticket
-        </button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          {canAnnul && (
+            <button
+              type="button"
+              className="button"
+              style={{ color: '#991b1b', borderColor: '#fecaca', background: '#fef2f2' }}
+              onClick={handleAnnul}
+            >
+              <XCircle size={16} /> Anular Venta
+            </button>
+          )}
+          <button className="button" onClick={() => window.print()}>
+            <Printer size={16} /> Imprimir Ticket
+          </button>
+        </div>
       </div>
 
       <div style={{ maxWidth: '640px', margin: '0 auto' }}>
@@ -138,3 +174,5 @@ export function SaleDetail() {
     </div>
   );
 }
+
+export const UIDetalleVenta = SaleDetail;

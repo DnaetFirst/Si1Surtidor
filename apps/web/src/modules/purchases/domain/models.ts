@@ -44,7 +44,7 @@ export interface PurchaseOrder {
   fecha: string;
   hora: string;
   motivo: string;
-  estado: 'PENDIENTE' | 'RECIBIDA' | 'ANULADA';
+  estado: 'PENDIENTE' | 'APROBADA' | 'RECIBIDA' | 'ANULADA';
   idProveedor: number | null;
   proveedorNombre?: string | null;
   proveedorNit?: string | null;
@@ -75,6 +75,7 @@ export interface PurchaseReceipt {
   id: number;
   codigo: string;
   motivo: string;
+  estado?: string;
   montoTotal: number;
   moneda: string;
   fecha: string;
@@ -105,3 +106,15 @@ export interface Batch {
   idProveedorProducto?: number | null;
   createdAt?: string;
 }
+
+// Alias para diagrama de clases, comunicación y análisis (CU9, CU10, CU13)
+export type Proveedor = Provider;
+export type ProveedorProducto = ProviderProduct;
+export type Orden_de_compra = PurchaseOrder;
+export type OrdenDeCompra = PurchaseOrder;
+export type Detalle_de_orden = PurchaseOrderDetail;
+export type DetalleOrdenCompra = PurchaseOrderDetail;
+export type Compra = PurchaseReceipt;
+export type NotaCompra = PurchaseReceipt;
+export type DetalleCompra = PurchaseReceiptDetail;
+export type Lote = Batch;

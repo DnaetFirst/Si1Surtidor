@@ -15,11 +15,14 @@ export interface PurchasesApi {
   listOrdersKey: (q?: string, branchId?: number, page?: number) => string;
   getOrder: (id: number) => Promise<PurchaseOrder>;
   createOrder: (data: any) => Promise<PurchaseOrder>;
+  updateOrder: (id: number, data: any) => Promise<PurchaseOrder>;
   updateOrderStatus: (id: number, estado: string, motivo?: string) => Promise<PurchaseOrder>;
+  deleteOrder: (id: number) => Promise<PurchaseOrder>;
 
   // Compras (Recepciones)
   listPurchasesKey: (q?: string, branchId?: number, page?: number) => string;
   getPurchase: (id: number) => Promise<PurchaseReceipt>;
   createPurchase: (data: any) => Promise<PurchaseReceipt>;
+  annulPurchase: (id: number) => Promise<PurchaseReceipt>;
   listBatchesKey: (productId?: number, page?: number) => string;
 }

@@ -19,14 +19,17 @@ export const purchasesApi: PurchasesApi = {
     `/ordenes-compra?q=${encodeURIComponent(q)}${branchId ? `&sucursalId=${branchId}` : ''}&page=${page}&pageSize=10`,
   getOrder: (id: number) => send<PurchaseOrder>(`/ordenes-compra/${id}`, 'GET'),
   createOrder: (data: any) => send<PurchaseOrder>('/ordenes-compra', 'POST', data),
+  updateOrder: (id: number, data: any) => send<PurchaseOrder>(`/ordenes-compra/${id}`, 'PATCH', data),
   updateOrderStatus: (id: number, estado: string, motivo?: string) =>
     send<PurchaseOrder>(`/ordenes-compra/${id}/estado`, 'PATCH', { estado, motivo }),
+  deleteOrder: (id: number) => send<PurchaseOrder>(`/ordenes-compra/${id}`, 'DELETE'),
 
   // Compras
   listPurchasesKey: (q = '', branchId?: number, page = 1) =>
     `/compras?q=${encodeURIComponent(q)}${branchId ? `&sucursalId=${branchId}` : ''}&page=${page}&pageSize=10`,
   getPurchase: (id: number) => send<PurchaseReceipt>(`/compras/${id}`, 'GET'),
   createPurchase: (data: any) => send<PurchaseReceipt>('/compras', 'POST', data),
+  annulPurchase: (id: number) => send<PurchaseReceipt>(`/compras/${id}/anular`, 'POST'),
   listBatchesKey: (productId?: number, page = 1) =>
     `/compras/lotes?${productId ? `productoId=${productId}&` : ''}page=${page}&pageSize=10`,
 };

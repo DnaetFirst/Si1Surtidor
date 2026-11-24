@@ -22,6 +22,8 @@ export function DiscountForm() {
   const [valor, setValor] = useState<number | ''>(10);
   const [descripcion, setDescripcion] = useState('');
   const [activo, setActivo] = useState(true);
+  const [fechaInicio, setFechaInicio] = useState('');
+  const [fechaFin, setFechaFin] = useState('');
   const [idSucursal, setIdSucursal] = useState<number | ''>('');
 
   const [saving, setSaving] = useState(false);
@@ -39,6 +41,8 @@ export function DiscountForm() {
       setValor(existing.valor);
       setDescripcion(existing.descripcion || '');
       setActivo(existing.activo);
+      setFechaInicio(existing.fechaInicio || '');
+      setFechaFin(existing.fechaFin || '');
       setIdSucursal(existing.idSucursal || '');
     }
   }, [existing]);
@@ -57,6 +61,8 @@ export function DiscountForm() {
           valor: Number(valor),
           descripcion: descripcion.trim(),
           activo,
+          fechaInicio: fechaInicio || null,
+          fechaFin: fechaFin || null,
           idSucursal: idSucursal ? Number(idSucursal) : undefined,
         });
         dispatch(setNotice('Descuento actualizado exitosamente.'));
@@ -66,6 +72,9 @@ export function DiscountForm() {
           tipo,
           valor: Number(valor),
           descripcion: descripcion.trim(),
+          activo,
+          fechaInicio: fechaInicio || null,
+          fechaFin: fechaFin || null,
           idSucursal: idSucursal ? Number(idSucursal) : undefined,
         });
         dispatch(setNotice('Descuento registrado exitosamente.'));
@@ -120,7 +129,7 @@ export function DiscountForm() {
                   required
                   type="number"
                   step="0.01"
-                  min="0"
+                  min="0.01"
                   max={tipo === 'PORCENTAJE' ? 100 : undefined}
                   value={valor}
                   onChange={e => setValor(e.target.value === '' ? '' : Number(e.target.value))}
@@ -132,6 +141,24 @@ export function DiscountForm() {
                   type="number"
                   min="1"
                   placeholder="Sin límite"
+                />
+              </Field>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <Field label="Fecha de inicio (Opcional)">
+                <input
+                  type="date"
+                  value={fechaInicio}
+                  onChange={e => setFechaInicio(e.target.value)}
+                />
+              </Field>
+
+              <Field label="Fecha de fin (Opcional)">
+                <input
+                  type="date"
+                  value={fechaFin}
+                  onChange={e => setFechaFin(e.target.value)}
                 />
               </Field>
             </div>
@@ -181,3 +208,6 @@ export function DiscountForm() {
     </form>
   );
 }
+
+export const UIDescuentoForm = DiscountForm;
+export const IUDescuentoForm = DiscountForm;

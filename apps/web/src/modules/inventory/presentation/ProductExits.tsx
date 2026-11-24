@@ -131,3 +131,7 @@ export function ProductExits() {
     </div>
   );
 }
+
+// Alias de componente «UI» para trazabilidad UML (CU19: UI.Salidas / UISalida)
+export const UISalida = ProductExits;
+export const UISalidas = ProductExits;

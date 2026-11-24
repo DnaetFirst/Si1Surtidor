@@ -76,3 +76,8 @@ export interface ProductNotification {
   productoStockMinimo?: number;
   visto?: boolean;
 }
+
+// Alias para diagrama de clases, comunicación y análisis (CU18, CU19)
+export type SalidaProducto = ProductExit;
+export type Salida_de_productos = ProductExit;
+export type NotificacionProducto = ProductNotification;

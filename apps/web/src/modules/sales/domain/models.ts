@@ -32,6 +32,8 @@ export interface Discount {
   porcentaje: number;
   activo: boolean;
   estaActivo: boolean;
+  fechaInicio?: string | null;
+  fechaFin?: string | null;
   idSucursal?: number | null;
   sucursalNombre?: string | null;
   createdAt?: string;
@@ -77,6 +79,7 @@ export interface Sale {
   montoCambio: number;
   fecha: string;
   hora: string;
+  estado?: string;
   estadoBSisa: boolean;
   ciUsuario: string;
   usuarioNombre?: string;
@@ -89,3 +92,11 @@ export interface Sale {
   totalVenta?: number;
   createdAt?: string;
 }
+
+// Alias para diagrama de clases, comunicación y análisis (CU7, CU11, CU12)
+export type Dispensador = Dispenser;
+export type Manguera = Hose;
+export type Descuento = Discount;
+export type Venta = Sale;
+export type DetalleVenta = SaleDetail;
+export type Cliente = Customer;

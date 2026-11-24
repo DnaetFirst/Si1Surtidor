@@ -164,3 +164,7 @@ export function Dispensers() {
     </div>
   );
 }
+
+// Alias de componente «UI» para trazabilidad UML (CU7: UI.Dispensador)
+export const UIDispensador = Dispensers;
+export const DispensadorUI = Dispensers;

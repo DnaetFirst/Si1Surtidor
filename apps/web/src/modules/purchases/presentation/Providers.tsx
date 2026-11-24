@@ -172,3 +172,7 @@ export function Providers() {
     </div>
   );
 }
+
+// Alias de componente «UI» para trazabilidad UML (CU13: UI.Proveedor)
+export const UIProveedor = Providers;
+export const ProveedorUI = Providers;

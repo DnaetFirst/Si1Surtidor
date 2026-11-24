@@ -1,4 +1,4 @@
-import { CheckCircle2, Download, Filter, Info, PlusCircle, XCircle } from 'lucide-react';
+import { CheckCircle2, Download, Filter, Info, Pencil, PlusCircle, XCircle } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import useSWR from 'swr';
@@ -179,11 +179,16 @@ export function PurchaseOrders() {
                           <Info size={14} style={{ marginRight: '6px' }} /> Ver Detalle
                         </button>
                         {o.estado === 'PENDIENTE' && allowed(user, 'ordenes', 'editar') && (
+                          <Link to={`/compras/ordenes/${o.id}/editar`}>
+                            <Pencil size={14} style={{ marginRight: '6px' }} /> Editar Orden
+                          </Link>
+                        )}
+                        {(o.estado === 'PENDIENTE' || o.estado === 'APROBADA') && allowed(user, 'ordenes', 'editar') && (
                           <button onClick={() => handleUpdateStatus(o.id, 'ANULADA')}>
                             <XCircle size={14} color="#ef4444" style={{ marginRight: '6px' }} /> Cancelar Orden
                           </button>
                         )}
-                        {o.estado === 'PENDIENTE' && allowed(user, 'compras', 'crear') && (
+                        {(o.estado === 'PENDIENTE' || o.estado === 'APROBADA') && allowed(user, 'compras', 'crear') && (
                           <Link to={`/compras/crear?ordenId=${o.id}`}>
                             <CheckCircle2 size={14} color="#10b981" style={{ marginRight: '6px' }} /> Recibir Compra
                           </Link>
@@ -269,3 +274,8 @@ export function PurchaseOrders() {
     </div>
   );
 }
+
+// Alias de componente «UI» para trazabilidad UML (CU9: UI.Orden / OrdenDeCompra)
+export const UIOrden = PurchaseOrders;
+export const UIOrdenCompra = PurchaseOrders;
+export const OrdenDeCompraUI = PurchaseOrders;

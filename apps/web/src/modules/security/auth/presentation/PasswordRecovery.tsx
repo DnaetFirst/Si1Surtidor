@@ -44,3 +44,7 @@ export function PasswordReset() {
                 <form onSubmit={submit} className="login-form"><ErrorBox error={error}/><div className="field"><label className="field-label" htmlFor="new-password">Nueva contraseña</label><PasswordInput id="new-password" autoComplete="new-password" required minLength={8} maxLength={128} value={contrasena} onChange={event => setContrasena(event.target.value)}/><small className="login-password-hint">Mínimo 8 caracteres, con mayúscula, minúscula, número y símbolo.</small></div><div className="field"><label className="field-label" htmlFor="confirm-password">Confirmar contraseña</label><PasswordInput id="confirm-password" autoComplete="new-password" required minLength={8} maxLength={128} value={confirmacion} onChange={event => setConfirmacion(event.target.value)}/></div><button type="submit" className="button primary" disabled={pending}>{pending && <LoaderCircle size={17} className="spin"/>}{pending ? 'Restableciendo…' : 'Restablecer contraseña'}</button></form>}
     </AuthPanel>;
 }
+
+// Alias de componente «UI» para trazabilidad UML (CU18: UI.Recuperación / Notificacion)
+export const UINotificacion = PasswordRecovery;
+export const UIRecuperacion = PasswordRecovery;

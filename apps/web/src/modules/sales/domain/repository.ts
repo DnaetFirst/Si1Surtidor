@@ -24,5 +24,6 @@ export interface SalesApi {
   listSalesKey: (q?: string, branchId?: number, page?: number) => string;
   getSale: (id: number) => Promise<Sale>;
   createSale: (data: any) => Promise<Sale>;
+  annulSale: (id: number) => Promise<Sale>;
   listCustomersKey: (q?: string, page?: number) => string;
 }

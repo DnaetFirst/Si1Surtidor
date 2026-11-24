@@ -154,9 +154,9 @@ export function PurchaseForm() {
                 onChange={e => setSelectedOrderId(e.target.value === '' ? '' : Number(e.target.value))}
               >
                 <option value="">Ninguna / Compra directa</option>
-                {(pendingOrders?.items || []).filter(o => o.estado === 'PENDIENTE').map(o => (
+                {(pendingOrders?.items || []).filter(o => o.estado === 'PENDIENTE' || o.estado === 'APROBADA').map(o => (
                   <option key={o.id} value={o.id}>
-                    {o.codigo} - {o.motivo || 'Orden'}
+                    {o.codigo} ({o.estado}) - {o.motivo || 'Orden'}
                   </option>
                 ))}
               </select>

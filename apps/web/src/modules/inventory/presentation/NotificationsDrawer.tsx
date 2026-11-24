@@ -219,3 +219,6 @@ export function NotificationsDrawer() {
     </div>
   );
 }
+
+// Alias de componente «UI» para trazabilidad UML (CU18)
+export const UINotificacionStock = NotificationsDrawer;
