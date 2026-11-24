@@ -1,9 +1,12 @@
 import { send } from '../../../shared/infrastructure/http';
 import {
+  AiReportConsultPayload,
+  AiReportResponse,
   DailySales,
   DispenserSale,
   ExitSummary,
   InventoryStatus,
+  PredefinedVoiceCommand,
   ProviderPurchase,
   SaleItemRow,
   TopCustomer,
@@ -64,4 +67,26 @@ export const reportsApi: ReportsApi = {
     if (periodo && periodo !== 'todo') url += `periodo=${periodo}&`;
     return url;
   },
+
+  exportExcelUrl: (type: string, from?: string, to?: string, branchId?: number, periodo?: string) => {
+    let url = `/api/reportes/exportar-excel?tipo=${type}&`;
+    if (from) url += `desde=${from}&`;
+    if (to) url += `hasta=${to}&`;
+    if (branchId) url += `sucursalId=${branchId}&`;
+    if (periodo && periodo !== 'todo') url += `periodo=${periodo}&`;
+    return url;
+  },
+
+  exportPdfUrl: (type: string, from?: string, to?: string, branchId?: number, periodo?: string) => {
+    let url = `/api/reportes/exportar-pdf?tipo=${type}&`;
+    if (from) url += `desde=${from}&`;
+    if (to) url += `hasta=${to}&`;
+    if (branchId) url += `sucursalId=${branchId}&`;
+    if (periodo && periodo !== 'todo') url += `periodo=${periodo}&`;
+    return url;
+  },
+
+  getVoiceCommands: () => send<PredefinedVoiceCommand[]>('/reportes/voz/comandos', 'GET'),
+
+  consultWithAi: (payload: AiReportConsultPayload) => send<AiReportResponse>('/reportes/ia/consultar', 'POST', payload),
 };

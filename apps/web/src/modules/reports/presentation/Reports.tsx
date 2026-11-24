@@ -2,22 +2,26 @@ import {
   AlertTriangle,
   BarChart3,
   CheckCircle2,
+  ChevronDown,
   DollarSign,
   Download,
   Fuel,
+  Mic,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import useSWR from 'swr';
 import { Card, PageHeading } from '../../../shared/presentation/layout';
 import { ErrorBox, Loading } from '../../../shared/presentation/feedback';
 import { Field } from '../../../shared/presentation/forms';
-import { useBranches } from '../../enterprise/branches/application/use-branches';
+import { useBranchOptions } from '../../enterprise/branches/application/use-branches';
 import { useReportsApi } from '../application/repository-context';
+import { ParsedVoiceIntent, ReportTabType } from '../domain/models';
+import { VoiceAiReportAssistant } from './VoiceAiReportAssistant';
 import { DashboardSummary } from '../domain/models';
 
 export function Reports() {
   const api = useReportsApi();
-  const branchesState = useBranches();
+  const { data: branchesData } = useBranchOptions();
 
   const [activeTab, setActiveTab] = useState<
     'resumen' | 'ventas' | 'dispensadores' | 'compras' | 'inventario' | 'salidas' | 'clientes'
@@ -64,8 +68,59 @@ export function Reports() {
     () => api.getCustomersReport(20)
   );
 
-  const handleExportCsv = (tipo: string) => {
-    window.open(api.exportCsvUrl(tipo, desde, hasta, idSucursal ? Number(idSucursal) : undefined, periodo), '_blank');
+  const { data: voiceCommands = [] } = useSWR('/reportes/voz/comandos', () => api.getVoiceCommands());
+  const [aiModalOpen, setAiModalOpen] = useState(false);
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!exportMenuOpen) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (!exportMenuRef.current?.contains(e.target as Node)) {
+        setExportMenuOpen(false);
+      }
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [exportMenuOpen]);
+
+  const handleExport = (
+    format: 'csv' | 'excel' | 'pdf',
+    tipo: string,
+    overrideIntent?: ParsedVoiceIntent,
+  ) => {
+    const targetFrom = overrideIntent?.desde ?? desde;
+    const targetTo = overrideIntent?.hasta ?? hasta;
+    const targetBranch = overrideIntent?.sucursalId ?? (idSucursal ? Number(idSucursal) : undefined);
+    const targetPeriodo = overrideIntent?.periodo ?? periodo;
+
+    const url =
+      format === 'excel'
+        ? api.exportExcelUrl(tipo, targetFrom, targetTo, targetBranch, targetPeriodo)
+        : format === 'pdf'
+          ? api.exportPdfUrl(tipo, targetFrom, targetTo, targetBranch, targetPeriodo)
+          : api.exportCsvUrl(tipo, targetFrom, targetTo, targetBranch, targetPeriodo);
+    window.open(url, '_blank');
+  };
+
+  const handleApplyVoiceIntent = (intent: ParsedVoiceIntent) => {
+    setActiveTab(intent.tipo as typeof activeTab);
+    if (intent.desde || intent.hasta) {
+      setDesde(intent.desde || '');
+      setHasta(intent.hasta || '');
+      setPeriodo('todo');
+    } else if (intent.periodo) {
+      setDesde('');
+      setHasta('');
+      setPeriodo(intent.periodo);
+    }
+    if (intent.sucursalId !== undefined) {
+      setIdSucursal(intent.sucursalId);
+    }
+    if (intent.formato) {
+      const exportTipo = intent.tipo === 'resumen' ? 'ventas' : intent.tipo;
+      handleExport(intent.formato, exportTipo, intent);
+    }
   };
 
   const tabs = [
@@ -84,17 +139,94 @@ export function Reports() {
         title="Reportes y Estadísticas"
         subtitle="Analítica en tiempo real de operaciones, ventas, inventario y abastecimiento."
       >
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
           <button
+            type="button"
             className="button"
-            onClick={() => handleExportCsv(activeTab === 'resumen' ? 'ventas' : activeTab)}
+            onClick={() => setAiModalOpen(true)}
           >
-            <Download size={16} /> Exportar CSV
+            <Mic size={16} /> Voz / IA
           </button>
+
+          <div ref={exportMenuRef} style={{ position: 'relative' }}>
+            <button
+              type="button"
+              className="button"
+              aria-expanded={exportMenuOpen}
+              onClick={() => setExportMenuOpen(v => !v)}
+            >
+              <Download size={16} /> Exportar <ChevronDown size={14} />
+            </button>
+            {exportMenuOpen && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 6px)',
+                  right: 0,
+                  minWidth: '185px',
+                  background: '#ffffff',
+                  border: '1px solid var(--border)',
+                  borderRadius: '8px',
+                  boxShadow: '0 8px 24px rgba(0, 0, 0, 0.12)',
+                  padding: '6px',
+                  zIndex: 1200,
+                  display: 'grid',
+                  gap: '2px',
+                }}
+              >
+                <button
+                  type="button"
+                  className="button"
+                  style={{ width: '100%', justifyContent: 'flex-start', border: 0 }}
+                  onClick={() => {
+                    setExportMenuOpen(false);
+                    handleExport('csv', activeTab === 'resumen' ? 'ventas' : activeTab);
+                  }}
+                >
+                  Exportar CSV (.csv)
+                </button>
+                <button
+                  type="button"
+                  className="button"
+                  style={{ width: '100%', justifyContent: 'flex-start', border: 0 }}
+                  onClick={() => {
+                    setExportMenuOpen(false);
+                    handleExport('excel', activeTab === 'resumen' ? 'ventas' : activeTab);
+                  }}
+                >
+                  Exportar Excel (.xlsx)
+                </button>
+                <button
+                  type="button"
+                  className="button"
+                  style={{ width: '100%', justifyContent: 'flex-start', border: 0 }}
+                  onClick={() => {
+                    setExportMenuOpen(false);
+                    handleExport('pdf', activeTab === 'resumen' ? 'ventas' : activeTab);
+                  }}
+                >
+                  Exportar PDF (.pdf)
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </PageHeading>
 
       <ErrorBox error={summaryError || salesError || dispensersError || purchasesError || exitsError} />
+
+      <VoiceAiReportAssistant
+        isOpen={aiModalOpen}
+        onClose={() => setAiModalOpen(false)}
+        activeTab={activeTab as ReportTabType}
+        from={desde}
+        to={hasta}
+        periodo={periodo as 'todo' | 'semana' | 'mes' | 'ano'}
+        branchId={idSucursal ? Number(idSucursal) : undefined}
+        voiceCommands={voiceCommands}
+        onConsult={payload => api.consultWithAi(payload)}
+        onApplyIntent={handleApplyVoiceIntent}
+      />
 
       {/* KPI Cards Row */}
       {summaryLoading ? (
@@ -268,7 +400,7 @@ export function Reports() {
             <Field label="Sucursal">
               <select value={idSucursal} onChange={e => setIdSucursal(e.target.value === '' ? '' : Number(e.target.value))}>
                 <option value="">Todas las sucursales</option>
-                {(branchesState.data?.items || []).map(b => (
+                {(branchesData || []).map(b => (
                   <option key={b.id} value={b.id}>
                     {b.nombre}
                   </option>
@@ -296,7 +428,7 @@ export function Reports() {
 
       {/* 1. Resumen Ejecutivo */}
       {activeTab === 'resumen' && summary && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+        <div className="responsive-split">
           <Card title="Ventas por Tipo de Combustible (Mes Actual)">
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {summary.ventasPorCombustible.map((c, i) => (

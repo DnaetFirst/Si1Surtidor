@@ -1,9 +1,10 @@
-import { Controller, Get, Header, Query, Req, Res } from '@nestjs/common';
+import { Body, Controller, Get, Header, HttpCode, Post, Query, Req, Res } from '@nestjs/common';
 import { ApiCookieAuth, ApiOperation, ApiProduces, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 import { AuthRequest } from '../../../shared/domain/context';
 import { RequirePermissions } from '../../security/auth/presentation/decorators';
 import { ReportsService } from '../application/service';
+import { ConsultReportAiDto } from './dto';
 
 /**
  * CU14. Gestionar reportes (Diagramas UML: ReportController / Audit / ReportController).
@@ -125,6 +126,87 @@ export class ReportsController {
     @Res() res?: Response,
   ) {
     return this.exportarCsv(tipo, desde, hasta, sucursalId, periodo, req, res);
+  }
+
+  @Get('exportar-excel')
+  @RequirePermissions('reportes.ver', 'reportes.gestionar', 'reportes.exportar')
+  @Header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+  @ApiProduces('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+  async exportarExcel(
+    @Query('tipo') tipo: string,
+    @Query('desde') desde?: string,
+    @Query('hasta') hasta?: string,
+    @Query('sucursalId') sucursalId?: number,
+    @Query('periodo') periodo?: string,
+    @Req() req?: AuthRequest,
+    @Res() res?: Response,
+  ) {
+    const buffer = await this.service.exportExcel(tipo || 'ventas', { desde, hasta, sucursalId, periodo }, req);
+    res?.setHeader('Content-Disposition', `attachment; filename="reporte_${tipo || 'general'}_${Date.now()}.xlsx"`);
+    res?.send(buffer);
+  }
+
+  @Get('exportar/excel')
+  @RequirePermissions('reportes.ver', 'reportes.gestionar', 'reportes.exportar')
+  @Header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+  @ApiProduces('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+  exportarExcelAlias(
+    @Query('tipo') tipo: string,
+    @Query('desde') desde?: string,
+    @Query('hasta') hasta?: string,
+    @Query('sucursalId') sucursalId?: number,
+    @Query('periodo') periodo?: string,
+    @Req() req?: AuthRequest,
+    @Res() res?: Response,
+  ) {
+    return this.exportarExcel(tipo, desde, hasta, sucursalId, periodo, req, res);
+  }
+
+  @Get('exportar-pdf')
+  @RequirePermissions('reportes.ver', 'reportes.gestionar', 'reportes.exportar')
+  @Header('Content-Type', 'application/pdf')
+  @ApiProduces('application/pdf')
+  async exportarPdf(
+    @Query('tipo') tipo: string,
+    @Query('desde') desde?: string,
+    @Query('hasta') hasta?: string,
+    @Query('sucursalId') sucursalId?: number,
+    @Query('periodo') periodo?: string,
+    @Req() req?: AuthRequest,
+    @Res() res?: Response,
+  ) {
+    const buffer = await this.service.exportPdf(tipo || 'ventas', { desde, hasta, sucursalId, periodo }, req);
+    res?.setHeader('Content-Disposition', `attachment; filename="reporte_${tipo || 'general'}_${Date.now()}.pdf"`);
+    res?.send(buffer);
+  }
+
+  @Get('exportar/pdf')
+  @RequirePermissions('reportes.ver', 'reportes.gestionar', 'reportes.exportar')
+  @Header('Content-Type', 'application/pdf')
+  @ApiProduces('application/pdf')
+  exportarPdfAlias(
+    @Query('tipo') tipo: string,
+    @Query('desde') desde?: string,
+    @Query('hasta') hasta?: string,
+    @Query('sucursalId') sucursalId?: number,
+    @Query('periodo') periodo?: string,
+    @Req() req?: AuthRequest,
+    @Res() res?: Response,
+  ) {
+    return this.exportarPdf(tipo, desde, hasta, sucursalId, periodo, req, res);
+  }
+
+  @Get('voz/comandos')
+  @RequirePermissions('reportes.ver', 'reportes.gestionar')
+  comandosVozPredefinidos() {
+    return this.service.getVoiceCommands();
+  }
+
+  @Post('ia/consultar')
+  @HttpCode(200)
+  @RequirePermissions('reportes.ver', 'reportes.gestionar')
+  consultarConIa(@Body() dto: ConsultReportAiDto, @Req() req?: AuthRequest) {
+    return this.service.consultWithAi(dto, req);
   }
 
   // Alias de métodos para trazabilidad con diagramas UML (CU14)

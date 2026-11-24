@@ -7,6 +7,7 @@ import { assertDateRange,calendarRange } from '../modules/enterprise/audit/domai
 import { ArchiveDto } from '../modules/enterprise/audit/presentation/dto';
 import { UpdateCompanyDto } from '../modules/enterprise/company/presentation/dto';
 import { assertReportDateRange, reportCalendarRange } from '../modules/reports/domain/calendar';
+import { PREDEFINED_VOICE_COMMANDS, parseVoiceReportIntent } from '../modules/reports/domain/voice-intents';
 import { UpdateRoleDto } from '../modules/security/roles/presentation/dto';
 import { CreateUserDto,UpdateUserDto } from '../modules/security/users/presentation/dto';
 import { csv } from '../shared/domain/csv';
@@ -77,4 +78,32 @@ test('Reportes (CU14) validan rango coherente y períodos calendario UTC-04:00',
     desde: '2026-01-01',
     hasta: '2026-12-31',
   });
+});
+
+test('Reportes por voz predefinidos e intención Gemini detectan tipo, rango, sucursal y formato', () => {
+  assert.ok(PREDEFINED_VOICE_COMMANDS.length >= 6);
+  const branches = [
+    { id: 1, nombre: 'Biopetrol - Sucursal Central' },
+    { id: 2, nombre: 'Biopetrol - Sucursal Norte' },
+  ];
+
+  const hoy = parseVoiceReportIntent(
+    'Muéstrame el reporte de ventas de hoy en Central en PDF',
+    branches,
+    new Date('2026-11-26T15:00:00Z'),
+  );
+  assert.equal(hoy.tipo, 'ventas');
+  assert.equal(hoy.desde, '2026-11-26');
+  assert.equal(hoy.hasta, '2026-11-26');
+  assert.equal(hoy.sucursalId, 1);
+  assert.equal(hoy.formato, 'pdf');
+
+  const stock = parseVoiceReportIntent('Qué productos tienen stock crítico en Excel', branches);
+  assert.equal(stock.tipo, 'inventario');
+  assert.equal(stock.formato, 'excel');
+
+  const semana = parseVoiceReportIntent('Reporte de dispensadores esta semana en Norte', branches);
+  assert.equal(semana.tipo, 'dispensadores');
+  assert.equal(semana.periodo, 'semana');
+  assert.equal(semana.sucursalId, 2);
 });

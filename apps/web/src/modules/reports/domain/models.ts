@@ -89,3 +89,63 @@ export interface TopCustomer {
   ultimaCompra?: string;
   sucursal?: string;
 }
+
+export type ReportTabType =
+  | 'resumen'
+  | 'ventas'
+  | 'dispensadores'
+  | 'compras'
+  | 'inventario'
+  | 'salidas'
+  | 'clientes';
+
+export type ReportExportFormat = 'csv' | 'excel' | 'pdf';
+
+export interface PredefinedVoiceCommand {
+  id: string;
+  etiqueta: string;
+  fraseEjemplo: string;
+  descripcion: string;
+  tipo: ReportTabType;
+  periodo: 'todo' | 'semana' | 'mes' | 'ano';
+  formato?: ReportExportFormat;
+  soloHoy?: boolean;
+}
+
+export interface ParsedVoiceIntent {
+  matchedCommandId?: string;
+  tipo: ReportTabType;
+  periodo: 'todo' | 'semana' | 'mes' | 'ano';
+  desde?: string;
+  hasta?: string;
+  sucursalId?: number;
+  sucursalNombre?: string;
+  formato?: ReportExportFormat;
+  preguntaIa: string;
+}
+
+export interface AiReportConsultPayload {
+  prompt: string;
+  tipo?: string;
+  desde?: string;
+  hasta?: string;
+  periodo?: string;
+  sucursalId?: number;
+  viaVoz?: boolean;
+}
+
+export interface AiReportResponse {
+  resumenEjecutivo: string;
+  hallazgos: string[];
+  recomendaciones: string[];
+  speechText: string;
+  provider: 'gemini' | 'local-fallback';
+  model: string;
+  notaConfiguracion?: string;
+  intent: ParsedVoiceIntent;
+  datasetTitle: string;
+  datasetSubtitle: string;
+  previewHeaders: string[];
+  previewRows: (string | number | null | undefined)[][];
+  totals: string[];
+}

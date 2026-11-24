@@ -283,4 +283,13 @@ export class PostgresReportsRepository extends ReportsRepository {
       [limit]
     );
   }
+
+  async listActiveBranches(): Promise<{ id: number; nombre: string }[]> {
+    return this.db.query(
+      `SELECT id, nombre
+       FROM sucursal
+       WHERE activo = true
+       ORDER BY id ASC`,
+    );
+  }
 }

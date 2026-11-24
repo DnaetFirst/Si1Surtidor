@@ -556,10 +556,52 @@ test('Ciclos 3 y 4: integración HTTP integral con PostgreSQL', { timeout: 120_0
     expected(await asu.request('GET', '/reportes/ventas?desde=2026-12-31&hasta=2026-01-01'), 400);
     expected(await asu.request('GET', `/reportes/ventas?sucursalId=${branchId}&periodo=mes`), 200);
 
-    // 9. Exportar CSV
+    // 9. Exportar CSV, Excel y PDF + Comandos por voz e IA
     const csvResponse = await asu.request('GET', '/reportes/exportar/csv?tipo=ventas');
     assert.equal(csvResponse.status, 200);
     assert.ok(csvResponse.text.includes('Codigo') || csvResponse.text.includes('Fecha'));
+
+    const excelResponse = await asu.request('GET', `/reportes/exportar/excel?tipo=ventas&sucursalId=${branchId}`);
+    assert.equal(excelResponse.status, 200);
+    assert.ok(
+      (excelResponse.headers.get('content-type') || '').includes('spreadsheetml.sheet'),
+      'Excel debe responder Content-Type XLSX'
+    );
+    assert.ok(excelResponse.text.startsWith('PK'), 'Excel debe devolver contenedor ZIP/XLSX válido');
+
+    const pdfResponse = await asu.request('GET', `/reportes/exportar/pdf?tipo=ventas&sucursalId=${branchId}`);
+    assert.equal(pdfResponse.status, 200);
+    assert.ok(
+      (pdfResponse.headers.get('content-type') || '').includes('application/pdf'),
+      'PDF debe responder Content-Type application/pdf'
+    );
+    assert.ok(pdfResponse.text.startsWith('%PDF-'), 'PDF debe comenzar con firma %PDF-');
+
+    const voiceCommandsRes = expected(await asu.request('GET', '/reportes/voz/comandos'), 200);
+    assert.ok(Array.isArray(voiceCommandsRes) && voiceCommandsRes.length >= 6);
+
+    const aiReportRes = expected(
+      await asu.request('POST', '/reportes/ia/consultar', {
+        prompt: 'Muéstrame el reporte de ventas de hoy',
+        sucursalId: branchId,
+        viaVoz: true,
+      }),
+      200
+    );
+    assert.ok(typeof aiReportRes.resumenEjecutivo === 'string' && aiReportRes.resumenEjecutivo.length > 10);
+    assert.ok(Array.isArray(aiReportRes.hallazgos) && aiReportRes.hallazgos.length > 0);
+    assert.equal(aiReportRes.intent?.tipo, 'ventas');
+    assert.ok(Array.isArray(aiReportRes.previewRows) && aiReportRes.previewRows.length >= 1, 'Debe incluir filas reales en previewRows');
+
+    const aiStockRes = expected(
+      await asu.request('POST', '/reportes/ia/consultar', {
+        prompt: '¿Qué productos tienen stock crítico en Excel?',
+        sucursalId: branchId,
+      }),
+      200
+    );
+    assert.equal(aiStockRes.intent?.tipo, 'inventario');
+    assert.equal(aiStockRes.intent?.formato, 'excel');
   });
 
   await t.test('Inmutabilidad de la Bitácora para operaciones de Ciclos 3 y 4', async () => {
